@@ -1,0 +1,11 @@
+Switch to truetype fonts
+Del
+Tab
+
+Selection: copy, cut and paste
+Line based copy, cut and paste
+More than one line...
+move between lines
+Command to interface with system
+
+Word wrap
