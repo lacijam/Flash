@@ -1,10 +1,10 @@
 #pragma once
 
-#include <SDL_types.h>
 #include <SDL_rect.h>
 
-struct CharRect : public SDL_Rect {
-    CharRect() : SDL_Rect({ 0, 0, 16, 16}) {}
-    CharRect(int x, int y, int w, int h) : SDL_Rect({ x, y, w, h}) {}
-    SDL_Rect screen() { return { x * w, y * h, w, h }; }
-};
+typedef SDL_Rect Char_Rect;
+
+inline Char_Rect screen(Char_Rect r, int cw, int ch)
+{
+    return { r.x * cw, r.y * ch, r.w, r.h };
+}

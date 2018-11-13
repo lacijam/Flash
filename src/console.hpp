@@ -29,27 +29,28 @@ public:
     void mvputch(char c, int x, int y);
     void mvputstr(const char *str, int x, int y);
 
+    void draw_cursor();
+
     int rows() const;
     int cols() const;
 
     bool window_should_close() const;
 
-    bool is_a_key_pressed();
 	bool is_key_pressed(SDL_Keycode code);
-	bool is_button_pressed(int button);
 
     SDL_Keycode get_cur_key() const;
 
     int char_w() const;
     int char_h() const;
 
+    Char_Rect cursor;
+    SDL_Rect cursor_line;
+
     char c;
+
 private: 
     SDL_Window *window;
     SDL_Renderer *renderer;
-
-    std::unordered_map<SDL_Keycode, bool> keys_pressed;
-	std::unordered_map<int, bool> buttons_pressed;
 
     TTF_Font *font;
 
@@ -59,7 +60,6 @@ private:
 
     int w, h;
 
-    CharRect cursor;
     SDL_Color fg_mask;
     SDL_Color bg;
     
@@ -113,9 +113,9 @@ inline void Console::mvxy(int x, int y)
 inline void Console::putch(char c)
 {
     SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, a);
-    SDL_RenderFillRect(renderer, &cursor.screen());
+    SDL_RenderFillRect(renderer, &screen(cursor, cw, ch));
     SDL_SetTextureColorMod(font_tex[c], fg_mask.r, fg_mask.g, fg_mask.b);
-    SDL_RenderCopy(renderer, font_tex[c], 0, &cursor.screen());
+    SDL_RenderCopy(renderer, font_tex[c], 0, &screen(cursor, cw, ch));
     SDL_SetTextureColorMod(font_tex[c], 255, 255, 255);
 }
 
@@ -132,7 +132,7 @@ inline void Console::putstr(const char *str)
     for (; *str; str++)
     {
         putch(*str);
-        cursor.x++;
+        ++cursor.x;
     }
 }
 
@@ -144,34 +144,30 @@ inline void Console::mvputstr(const char *str, int x, int y)
     putstr(str);
 }
 
+inline void Console::draw_cursor()
+{
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderFillRect(renderer, &screen(cursor_line, cw, ch));
+}
+
 inline int Console::rows() const
 {
-    return h / ch;
+    return (h / ch);
 }
 
 inline int Console::cols() const
 {
-    return w / cw;
+    return (w / cw);
 }
 
 inline bool Console::window_should_close() const
 {
-    return close_window;
+    return (close_window);
 }
 
-inline bool Console::is_a_key_pressed()
+inline bool Console::is_key_pressed(SDL_Keycode k)
 {
-    return keys_pressed.size();
-}
-
-inline bool Console::is_key_pressed(SDL_Keycode code)
-{
-	return keys_pressed[code];
-}
-
-inline bool Console::is_button_pressed(int button)
-{
-	return buttons_pressed[button];
+    return (cur_key == k);
 }
 
 inline SDL_Keycode Console::get_cur_key() const

@@ -16,7 +16,8 @@ Console::Console(const char *title, int w, int h)
       cur_key(0),
       c(0),
       cw(0),
-      ch(0)
+      ch(0),
+      cursor_line({ 0, 0, 2, 0})
 {
     if (SDL_Init(SDL_INIT_VIDEO))
         MsgAndQuit("Failed to initialize SDL!");
@@ -41,8 +42,9 @@ Console::Console(const char *title, int w, int h)
     if (TTF_WasInit())
         load_ttf_font();
 
-    cursor.w = cw;
-    cursor.h = ch;
+    cursor = { 0, 0, cw, ch };
+
+    cursor_line.h = ch;
 
     close_window = false;
 
@@ -73,8 +75,6 @@ void Console::set_alpha(bool value)
 
 void Console::poll_events()
 {
-	keys_pressed.clear();
-	buttons_pressed.clear();
     cur_key = 0;
 
     SDL_Event event;
@@ -90,12 +90,16 @@ void Console::poll_events()
 			case SDL_KEYDOWN:
 			{
                 cur_key = (event.key.keysym.sym - ((event.key.keysym.mod & KMOD_LSHIFT) ? 32 : 0));
-				keys_pressed[cur_key] = (event.type == SDL_KEYDOWN);
 			} break;
 
             case SDL_TEXTINPUT:
             {
                 c = event.text.text[0];
+                if (!font_tex[c])
+                {
+                    font_tex[c] = SDL_CreateTextureFromSurface(renderer,
+                        TTF_RenderGlyph_Solid(font, c, { 255, 255, 255, 255 }));
+                }
             } break;
 		}
     }
