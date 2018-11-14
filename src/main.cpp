@@ -6,15 +6,19 @@
 
 enum VERT_DIR { UP, DOWN };
 
-GapBuffer<char>* move_cursor_vertical(VERT_DIR dir, GapBuffer<char> *cur_line, GapBuffer<GapBuffer<char>*> *file, Char_Rect *cursor_line)
+GapBuffer<char>* move_cursor_vertical(VERT_DIR dir, GapBuffer<char> *cur_line, GapBuffer<GapBuffer<char>*> *file, 
+                                      Char_Rect *cursor_line)
 {
-    int old_length = cur_line->sz - (cur_line->gap_end - cur_line->gap_start);
-    int old_gap_start = cur_line->gap_start;
-
     if ((dir == UP) ? file->move_gap_left() : file->move_gap_right())
     {
+        int old_length = cur_line->sz - (cur_line->gap_end - cur_line->gap_start);
+        int old_gap_start = cur_line->gap_start;
+ 
         cur_line = file->data[file->gap_start - 1]; 
         cur_line->move_gap_to_end();
+
+        // If the UP or DOWN was pressed and the cursor is not at the end of the line,
+        // move the cursor back to its original horizontal position as much as possible. 
         if (old_gap_start < old_length)
         {
             while (cur_line->gap_start > old_gap_start) 
@@ -47,15 +51,17 @@ int main(int argc, char *argv[])
             file->insert_at_gap(new GapBuffer<char>(0));
             cur_line = file->data[file->gap_start - 1];
 
+            // If enter was pressed and the cursor is not at the end of a line.
+            // Move all data after the cursor to the new line below.
             if (old_line->gap_start < old_length)
             {
-                printf("copy\n");
-                int move_start = old_line->gap_start - 1;
+                int i = old_line->gap_start;
                 old_line->move_gap_to_end();
-                while (move_start++ < old_length - 1) 
+                while (i < old_length)
                 {
-                    cur_line->insert_at_gap(old_line->data[move_start]);
+                    cur_line->insert_at_gap(old_line->data[i]);
                     old_line->remove_at_gap();
+                    ++i;
                 }
 
                 cur_line->move_gap_to_start();
@@ -63,30 +69,100 @@ int main(int argc, char *argv[])
 
             ++app->cursor_line.y;
         }
-        if (app->is_key_pressed(SDLK_UP))
+        else if (app->is_key_pressed(SDLK_BACKSPACE))
+        {
+            // Try to remove a character at the gap.
+            if (!cur_line->remove_at_gap())
+            {
+                // The gap is at the start of the line so move any data on this line
+                // to the line above.
+                GapBuffer<char> *old_line = cur_line;
+                
+                if (file->remove_at_gap())
+                {
+                    int old_length = old_line->sz - (old_line->gap_end - old_line->gap_start);
+                    
+                    cur_line = file->data[file->gap_start - 1];
+
+                    cur_line->move_gap_to_end();
+                    old_line->move_gap_to_end();
+                    int i = 0;
+                    while (i < old_length) 
+                    {
+                        cur_line->insert_at_gap(old_line->data[i]);
+                        old_line->remove_at_gap();
+                        ++i;
+                    }
+
+                    while (i) 
+                        cur_line->move_gap_left(), --i;
+
+                    --app->cursor_line.y;
+                }
+            }
+        }
+        else if (app->is_key_pressed(SDLK_DELETE))
+        {
+            // Try to remove a character from the end of the line
+            if (!cur_line->remove_from_back())
+            {
+                // At the end of the line, so if the next line has data
+                // move it to the end of this line.
+                GapBuffer<char> *old_line = file->data[file->gap_end];
+                
+                if (file->move_gap_right())
+                {
+                    int old_length = old_line->sz - (old_line->gap_end - old_line->gap_start);
+
+                    file->remove_at_gap();
+
+                    cur_line->move_gap_to_end();
+                    old_line->move_gap_to_end();
+                    int i = 0;
+                    while (i < old_length) 
+                    {
+                        cur_line->insert_at_gap(old_line->data[i]);
+                        old_line->remove_at_gap();
+                        ++i;
+                    }
+
+                    while (i) 
+                        cur_line->move_gap_left(), --i;
+                }
+            }
+        }
+        
+        else if (app->is_key_pressed(SDLK_UP))
         {
             cur_line = move_cursor_vertical(UP, cur_line, file, &app->cursor_line);
         }
         else if (app->is_key_pressed(SDLK_DOWN))
         {
             cur_line = move_cursor_vertical(DOWN, cur_line, file, &app->cursor_line);
-            
         }
         else if (app->is_key_pressed(SDLK_LEFT))
         {
-            if (cur_line->move_gap_left());
+            if (!cur_line->move_gap_left())
+            {
+                if (file->move_gap_left())
+                {
+                    cur_line = file->data[file->gap_start - 1];
+                    cur_line->move_gap_to_end();
+                    --app->cursor_line.y;
+                }
+            }
         }
         else if (app->is_key_pressed(SDLK_RIGHT))
         {
-            if (cur_line->move_gap_right());
-        }
-        else if (app->is_key_pressed(SDLK_BACKSPACE))
-        {
-            if (cur_line->remove_at_gap());
-        }
-        else if (app->is_key_pressed(SDLK_DELETE))
-        {
-            cur_line->remove_from_back();
+            if (!cur_line->move_gap_right())
+            {
+                if (file->move_gap_right())
+                {
+                    cur_line = file->data[file->gap_start - 1];
+                    cur_line->move_gap_to_start();
+                    ++app->cursor_line.y;
+                }
+            }
         }
 
         if (app->c)

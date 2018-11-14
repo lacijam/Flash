@@ -11,7 +11,7 @@ struct GapBuffer {
     void resize_gap(size_t new_sz);
     void insert_at_gap(T c);
     void insert_at_gap(T *arr);
-    void remove_from_back();
+    bool remove_from_back();
     bool remove_at_gap();
     bool move_gap_left();
     bool move_gap_right();
@@ -80,10 +80,16 @@ inline void GapBuffer<T>::insert_at_gap(T *arr)
 }
 
 template <typename T>
-inline void GapBuffer<T>::remove_from_back()
+bool GapBuffer<T>::remove_from_back()
 {
     if (gap_end < sz)
+    {
         ++gap_end;
+    
+        return true;
+    }
+
+    return false;
 }
 
 template <typename T>
