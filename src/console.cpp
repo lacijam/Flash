@@ -17,7 +17,8 @@ Console::Console(const char *title, int w, int h)
       c(0),
       cw(0),
       ch(0),
-      cursor_line({ 0, 0, 2, 0})
+      cursor_line({ 0, 0, 3, 0}),
+      cursor_blink(0)
 {
     if (SDL_Init(SDL_INIT_VIDEO))
         MsgAndQuit("Failed to initialize SDL!");
@@ -29,7 +30,7 @@ Console::Console(const char *title, int w, int h)
         title, 
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
         w, h,
-        0);
+        SDL_WINDOW_RESIZABLE);
 
     if (!window)
         MsgAndQuit("Failed to create SDL window!");
@@ -115,12 +116,12 @@ void Console::free_font_textures()
 
 void Console::load_ttf_font()
 {
-    font = TTF_OpenFont("res/font/FSEX300.ttf", 18);
+    font = TTF_OpenFont("res/font/DejaVuSansMono.ttf", 18);
 
     for (char c = ' '; c <= '~'; ++c)
     {
         font_tex[c] = SDL_CreateTextureFromSurface(renderer,
-                        TTF_RenderGlyph_Solid(font, c, { 255, 255, 255, 255 }));
+                        TTF_RenderGlyph_Blended(font, c, { 255, 255, 255, 255 }));
     }
 
     SDL_QueryTexture(font_tex['A'], 0, 0, &cw, &ch);

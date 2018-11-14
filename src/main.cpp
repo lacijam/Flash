@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
         if (app->c)
         {
             cur_line->insert_at_gap(app->c);
+            app->cursor_blink = 0;
         }
 
         app->cursor_line.x = cur_line->gap_start;

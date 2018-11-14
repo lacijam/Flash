@@ -46,6 +46,8 @@ public:
     Char_Rect cursor;
     SDL_Rect cursor_line;
 
+    int cursor_blink;
+
     char c;
 
 private: 
@@ -146,8 +148,14 @@ inline void Console::mvputstr(const char *str, int x, int y)
 
 inline void Console::draw_cursor()
 {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderFillRect(renderer, &screen(cursor_line, cw, ch));
+    if (++cursor_blink % 60 < 30)
+    {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderFillRect(renderer, &screen(cursor_line, cw, ch));
+    }
+    
+    if (cursor_blink > 60)
+        cursor_blink = 0;
 }
 
 inline int Console::rows() const
