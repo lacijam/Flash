@@ -9,7 +9,7 @@
 
 int main(int argc, char *argv[])
 {
-    Console *app = new Console("Flash", 640, 480);
+    Console *app = new Console("Flash", 800, 600);
 
     GapBuffer<GapBuffer<char>*> *file = new GapBuffer<GapBuffer<char>*>(1);
     file->insert_at_gap(new GapBuffer<char>(0));
@@ -24,8 +24,9 @@ int main(int argc, char *argv[])
             while (fgets(line, sizeof(line), f))
             {
                 cur_line->insert_at_gap(line);
+                cur_line->remove_at_gap();
                 file->insert_at_gap(new GapBuffer<char>(0));
-                cur_line = file->data[file->gap_start - 1];            
+                cur_line = file->data[file->gap_start - 1];      
             }
 
             file->move_gap_to_start();
@@ -131,7 +132,7 @@ int main(int argc, char *argv[])
         else if (app->is_key_pressed(SDLK_TAB))
         {
             // Add tab width variable
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < 4; i++)
             {
                 cur_line->insert_at_gap(' ');
             }
@@ -153,7 +154,7 @@ int main(int argc, char *argv[])
                     cur_line = file->data[file->gap_start - 1];
                     cur_line->move_gap_to_end();
 
-                    move_cursor(DOWN, view_y, app->rows() - 1, app->cursor_line);                    
+                    move_cursor(UP, view_y, app->rows() - 1, app->cursor_line);                    
                 }
             }
         }
@@ -166,7 +167,7 @@ int main(int argc, char *argv[])
                     cur_line = file->data[file->gap_start - 1];
                     cur_line->move_gap_to_start();
                     
-                    move_cursor(UP, view_y, app->rows() - 1, app->cursor_line);
+                    move_cursor(DOWN, view_y, app->rows() - 1, app->cursor_line);
                 }
             }
         }

@@ -115,7 +115,7 @@ void Console::free_font_textures()
 
 void Console::load_ttf_font()
 {
-    font = TTF_OpenFont("res/font/FSEX300.ttf", 24);
+    font = TTF_OpenFont("res/font/FSEX300.ttf", 18);
 
     for (char c = ' '; c <= '~'; ++c)
     {
