@@ -15,6 +15,8 @@ struct GapBuffer {
     bool remove_at_gap();
     bool move_gap_left();
     bool move_gap_right();
+    void move_gap_to_start();
+    void move_gap_to_end();
 
     T *data;
     int gap_start;
@@ -30,9 +32,8 @@ GapBuffer<T>::GapBuffer(int min_size)
     MIN_SIZE = min_size;
     BUFFER_GROWBY = 10;
     sz = BUFFER_GROWBY;
-    data = (T*)malloc(sz + 1);
-    data[sz] = '\0';
-    memset(data, 0, sz - 1);
+    data = (T*)malloc(sz * sizeof(T));
+    memset(data, 0, sz * sizeof(T));
     gap_start = 0;
     gap_end = sz;
 }
@@ -46,11 +47,10 @@ GapBuffer<T>::~GapBuffer()
 template <typename T>
 void GapBuffer<T>::resize_gap(size_t new_sz)
 {
-    T *new_data = (T*)malloc((new_sz + 1) * sizeof(T));
-    new_data[new_sz] = '\0';
-    memset(new_data, 0, new_sz - 1);
-    memcpy(new_data, data, gap_start);
-    memcpy(new_data + gap_end + BUFFER_GROWBY, data + gap_end, sz - gap_end);
+    T *new_data = (T*)malloc(new_sz * sizeof(T));
+    memset(new_data, 0, new_sz * sizeof(T));
+    memcpy(new_data, data, gap_start * sizeof(T));
+    memcpy(new_data + gap_end + BUFFER_GROWBY, data + gap_end, (sz - gap_end) * sizeof(T));
     
     free(data);
 
@@ -71,7 +71,7 @@ void GapBuffer<T>::insert_at_gap(T c)
 }
 
 template <typename T>
-void GapBuffer<T>::insert_at_gap(T *arr)
+inline void GapBuffer<T>::insert_at_gap(T *arr)
 {
     for (; *arr; ++arr)
     {
@@ -80,7 +80,7 @@ void GapBuffer<T>::insert_at_gap(T *arr)
 }
 
 template <typename T>
-void GapBuffer<T>::remove_from_back()
+inline void GapBuffer<T>::remove_from_back()
 {
     if (gap_end < sz)
         ++gap_end;
@@ -102,7 +102,7 @@ bool GapBuffer<T>::remove_at_gap()
 template <typename T>
 bool GapBuffer<T>::move_gap_left()
 {
-    if (gap_start > 0)
+    if (gap_start > MIN_SIZE && gap_start > 0)
     {
         data[--gap_end] = data[--gap_start];
 
@@ -123,4 +123,16 @@ bool GapBuffer<T>::move_gap_right()
     }
 
     return false;
+}
+
+template <typename T>
+inline void GapBuffer<T>::move_gap_to_start()
+{
+    while (move_gap_left());
+}
+
+template <typename T>
+inline void GapBuffer<T>::move_gap_to_end()
+{
+    while (move_gap_right());
 }
