@@ -1,35 +1,11 @@
+#include <stdio.h>
+
 #include <SDL.h>
 
 #include "Console.hpp"
 #include "char_rect.hpp"
 #include "gap_buffer.hpp"
-
-enum VERT_DIR { UP, DOWN };
-
-GapBuffer<char>* move_cursor_vertical(VERT_DIR dir, GapBuffer<char> *cur_line, GapBuffer<GapBuffer<char>*> *file, 
-                                      Char_Rect *cursor_line)
-{
-    if ((dir == UP) ? file->move_gap_left() : file->move_gap_right())
-    {
-        int old_length = cur_line->sz - (cur_line->gap_end - cur_line->gap_start);
-        int old_gap_start = cur_line->gap_start;
- 
-        cur_line = file->data[file->gap_start - 1]; 
-        cur_line->move_gap_to_end();
-
-        // If the UP or DOWN was pressed and the cursor is not at the end of the line,
-        // move the cursor back to its original horizontal position as much as possible. 
-        if (old_gap_start < old_length)
-        {
-            while (cur_line->gap_start > old_gap_start) 
-                cur_line->move_gap_left();
-        }
-
-        (dir == UP) ? --cursor_line->y : ++cursor_line->y;
-    }
-
-    return cur_line;
-}
+#include "editor.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -38,6 +14,27 @@ int main(int argc, char *argv[])
     GapBuffer<GapBuffer<char>*> *file = new GapBuffer<GapBuffer<char>*>(1);
     file->insert_at_gap(new GapBuffer<char>(0));
     GapBuffer<char> *cur_line = file->data[0];
+
+    if (argc)
+    {
+        FILE *f = fopen(argv[1], "r");
+        if (f != NULL)
+        {
+            char line[256];
+            while (fgets(line, sizeof(line), f))
+            {
+                cur_line->insert_at_gap(line);
+                file->insert_at_gap(new GapBuffer<char>(0));
+                cur_line = file->data[file->gap_start - 1];            
+            }
+
+            file->move_gap_to_start();
+
+            fclose(f);
+        }
+    }
+
+    int view_y = 0;
 
     while (!app->window_should_close())
     {
@@ -67,7 +64,7 @@ int main(int argc, char *argv[])
                 cur_line->move_gap_to_start();
             }
 
-            ++app->cursor_line.y;
+            move_cursor(DOWN, view_y, app->rows() - 1, app->cursor_line);
         }
         else if (app->is_key_pressed(SDLK_BACKSPACE))
         {
@@ -97,7 +94,7 @@ int main(int argc, char *argv[])
                     while (i) 
                         cur_line->move_gap_left(), --i;
 
-                    --app->cursor_line.y;
+                    move_cursor(UP, view_y, app->rows() - 1, app->cursor_line);
                 }
             }
         }
@@ -131,14 +128,21 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        
+        else if (app->is_key_pressed(SDLK_TAB))
+        {
+            // Add tab width variable
+            for (int i = 0; i < 3; i++)
+            {
+                cur_line->insert_at_gap(' ');
+            }
+        }
         else if (app->is_key_pressed(SDLK_UP))
         {
-            cur_line = move_cursor_vertical(UP, cur_line, file, &app->cursor_line);
+            cur_line = move_cursor_vertical(UP, cur_line, file, app->cursor_line, view_y, app->rows() - 1);
         }
         else if (app->is_key_pressed(SDLK_DOWN))
         {
-            cur_line = move_cursor_vertical(DOWN, cur_line, file, &app->cursor_line);
+            cur_line = move_cursor_vertical(DOWN, cur_line, file, app->cursor_line, view_y, app->rows() - 1);
         }
         else if (app->is_key_pressed(SDLK_LEFT))
         {
@@ -148,7 +152,8 @@ int main(int argc, char *argv[])
                 {
                     cur_line = file->data[file->gap_start - 1];
                     cur_line->move_gap_to_end();
-                    --app->cursor_line.y;
+
+                    move_cursor(DOWN, view_y, app->rows() - 1, app->cursor_line);                    
                 }
             }
         }
@@ -160,7 +165,8 @@ int main(int argc, char *argv[])
                 {
                     cur_line = file->data[file->gap_start - 1];
                     cur_line->move_gap_to_start();
-                    ++app->cursor_line.y;
+                    
+                    move_cursor(UP, view_y, app->rows() - 1, app->cursor_line);
                 }
             }
         }
@@ -184,7 +190,7 @@ int main(int argc, char *argv[])
                 for (int i = 0; i < line->sz; ++i)
                 {
                     if (i < line->gap_start || i >= line->gap_end)
-                        app->mvputch(line->data[i], j++, l);
+                        app->mvputch(line->data[i], j++, l - view_y);
                 }
 
                 l++;
