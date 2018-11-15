@@ -13,8 +13,8 @@ int main(int argc, char *argv[])
     GapBuffer<char> *cur_line = 0;
 
     bool changed = false;
-
-    if (argc)
+    
+    if (argc > 1)
     {
         FILE *f = fopen(argv[1], "r");
         if (f)
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
         }
         };
 
-        const char *file_name = (argc) ? argv[1] : "untitled";
+        const char *file_name = (argc > 1) ? argv[1] : "untitled";
 
         char msg[128] = "Do you want to save changes made to ";
         strcat(msg, file_name);
