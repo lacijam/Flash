@@ -12,6 +12,8 @@ int main(int argc, char *argv[])
     GapBuffer<GapBuffer<char>*> *file = new GapBuffer<GapBuffer<char>*>(1);
     GapBuffer<char> *cur_line = 0;
 
+    bool changed = false;
+
     if (argc)
     {
         FILE *f = fopen(argv[1], "r");
@@ -76,11 +78,15 @@ int main(int argc, char *argv[])
             }
 
             move_cursor(DOWN, view_y, app->rows() - 1, app->cursor_line);
+    
+            changed = true;
         }
         else if (app->is_key_pressed(SDLK_BACKSPACE))
         {
             // Try to remove a character at the gap.
-            if (!cur_line->remove_at_gap())
+            if (cur_line->remove_at_gap())
+                changed = true;
+            else
             {
                 // The gap is at the start of the line so move any data on this line
                 // to the line above.
@@ -106,13 +112,17 @@ int main(int argc, char *argv[])
                         cur_line->move_gap_left(), --i;
 
                     move_cursor(UP, view_y, app->rows() - 1, app->cursor_line);
+
+                    changed = true;
                 }
             }
         }
         else if (app->is_key_pressed(SDLK_DELETE))
         {
             // Try to remove a character from the end of the line
-            if (!cur_line->remove_from_back())
+            if (cur_line->remove_from_back())
+                changed = true;
+            else
             {
                 // At the end of the line, so if the next line has data
                 // move it to the end of this line.
@@ -136,6 +146,8 @@ int main(int argc, char *argv[])
 
                     while (i) 
                         cur_line->move_gap_left(), --i;
+
+                    changed = true;
                 }
             }
         }
@@ -146,6 +158,8 @@ int main(int argc, char *argv[])
             {
                 cur_line->insert_at_gap(' ');
             }
+
+            changed = true;
         }
         else if (app->is_key_pressed(SDLK_UP))
         {
@@ -195,6 +209,8 @@ int main(int argc, char *argv[])
         if (app->c)
         {
             cur_line->insert_at_gap(app->c);
+
+            changed = true;
         }
 
         app->cursor_line.x = cur_line->gap_start;
@@ -229,35 +245,81 @@ int main(int argc, char *argv[])
         SDL_Delay(16);
     }
 
-    if (argc)
+    /* Until command line is done */
+    /*============================================================*/
+    if (changed)
     {
-        FILE *f = fopen(argv[1], "w+");
-        
-        if (f)
+        const SDL_MessageBoxButtonData buttons[] = {
+            { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
+            { 0,                                       1, "No" },
+            { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 2, "Yes" },
+        };
+    
+        const SDL_MessageBoxColorScheme colorScheme = {
+        { /* .colors (.r, .g, .b) */
+            /* [SDL_MESSAGEBOX_COLOR_BACKGROUND] */
+            { 255,   0,   0 },
+            /* [SDL_MESSAGEBOX_COLOR_TEXT] */
+            {   0, 255,   0 },
+            /* [SDL_MESSAGEBOX_COLOR_BUTTON_BORDER] */
+            { 255, 255,   0 },
+            /* [SDL_MESSAGEBOX_COLOR_BUTTON_BACKGROUND] */
+            {   0,   0, 255 },
+            /* [SDL_MESSAGEBOX_COLOR_BUTTON_SELECTED] */
+            { 255,   0, 255 }
+        }
+        };
+
+        const char *file_name = (argc) ? argv[1] : "untitled";
+
+        char msg[128] = "Do you want to save changes made to ";
+        strcat(msg, file_name);
+        strcat(msg, "?");
+
+        const SDL_MessageBoxData messageboxdata = {
+            SDL_MESSAGEBOX_INFORMATION, /* .flags */
+            NULL, /* .window */
+            "Flash", /* .title */
+            msg, /* .message */
+            SDL_arraysize(buttons), /* .numbuttons */
+            buttons, /* .buttons */
+            &colorScheme /* .colorScheme */
+        };
+        int buttonid;
+        SDL_ShowMessageBox(&messageboxdata, &buttonid);
+    
+        if (buttonid == 2)
         {
-            file->move_gap_to_start();
-
-            cur_line = file->data[file->gap_start - 1];
-
-            // Ignore the empty gap.
-            cur_line->move_gap_to_end();
-            cur_line->insert_at_gap('\0');
-
-            fprintf(f, "%s", cur_line->data);
-
-            while (file->move_gap_right())
+            FILE *f = fopen(file_name, "w+");
+            
+            if (f)
             {
+                file->move_gap_to_start();
+
                 cur_line = file->data[file->gap_start - 1];
 
+                // Ignore the empty gap.
                 cur_line->move_gap_to_end();
                 cur_line->insert_at_gap('\0');
 
-                fprintf(f, "\n%s", cur_line->data);
-            }
+                fprintf(f, "%s", cur_line->data);
 
-            fclose(f); 
+                while (file->move_gap_right())
+                {
+                    cur_line = file->data[file->gap_start - 1];
+
+                    cur_line->move_gap_to_end();
+                    cur_line->insert_at_gap('\0');
+
+                    fprintf(f, "\n%s", cur_line->data);
+                }
+
+                fclose(f);
+            }
         }
     }
+
+    /*============================================================*/
 
     delete app;
 
