@@ -88,6 +88,17 @@ void Console::poll_events()
 		{
             case SDL_QUIT: close_window = true; break;
 
+            case SDL_WINDOWEVENT:
+            {
+                switch (event.window.event)
+                {
+                    case SDL_WINDOWEVENT_RESIZED: 
+                    {
+                        SDL_GetWindowSize(window, &w, &h); 
+                    } break;
+                }
+            } break;
+
 			case SDL_KEYDOWN:
 			{
                 cur_key = (event.key.keysym.sym - ((event.key.keysym.mod & KMOD_LSHIFT) ? 32 : 0));

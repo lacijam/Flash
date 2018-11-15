@@ -37,7 +37,7 @@ public:
     bool window_should_close() const;
 
 	bool is_key_pressed(SDL_Keycode code);
-
+    
     SDL_Keycode get_cur_key() const;
 
     int char_w() const;
