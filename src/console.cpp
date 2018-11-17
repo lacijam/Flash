@@ -7,18 +7,21 @@
     } while (0)
     
 Console::Console(const char *title, int w, int h)
-    : w(w),
-      h(h),
+    : window_w(w),
+      window_h(h),
+      rows(0),
+      cols(0),
       bg({ 0, 0, 0, 255 }),
       fg_mask({ 255, 255, 255, 255}),
-      a(0),
-      close_window(true),
+      alpha(255),
+      cursor({ 0, 0, 0, 0 }),
+      window_open(false),
       cur_key(0),
-      c(0),
-      cw(0),
-      ch(0),
-      cursor_line({ 0, 0, 3, 0}),
-      cursor_blink(0)
+      input(0),
+      char_w(0),
+      char_h(0),
+      invoke_self(false),
+      cur_file_name("Flash")
 {
     if (SDL_Init(SDL_INIT_VIDEO))
         MsgAndQuit("Failed to initialize SDL!");
@@ -40,16 +43,18 @@ Console::Console(const char *title, int w, int h)
     if (!renderer)
         MsgAndQuit("Failed to create SDL renderer!");
 
-    if (TTF_WasInit())
-        load_ttf_font();
+    if (!TTF_WasInit())
+        MsgAndQuit("Failed to initialize SDL ttf!");
 
-    cursor = { 0, 0, cw, ch };
+    load_ttf_font();
 
-    cursor_line.h = ch;
+    rows = window_h / char_h;
+    cols = window_w / char_w;
 
-    close_window = false;
+    cursor.w = char_w;
+    cursor.h = char_h;
 
-    SDL_StartTextInput();
+    window_open = true;
 }
 
 Console::~Console()
@@ -80,13 +85,13 @@ void Console::poll_events()
 
     SDL_Event event;
 
-    c = 0;
+    input = 0;
 
     while (SDL_PollEvent(&event))
     {
 		switch (event.type)
 		{
-            case SDL_QUIT: close_window = true; break;
+            case SDL_QUIT: window_open = false; break;
 
             case SDL_WINDOWEVENT:
             {
@@ -94,7 +99,7 @@ void Console::poll_events()
                 {
                     case SDL_WINDOWEVENT_RESIZED: 
                     {
-                        SDL_GetWindowSize(window, &w, &h); 
+                        SDL_GetWindowSize(window, &window_w, &window_h); 
                     } break;
                 }
             } break;
@@ -106,11 +111,11 @@ void Console::poll_events()
 
             case SDL_TEXTINPUT:
             {
-                c = event.text.text[0];
-                if (!font_tex[c])
+                input = event.text.text[0];
+                if (!font_tex[input])
                 {
-                    font_tex[c] = SDL_CreateTextureFromSurface(renderer,
-                        TTF_RenderGlyph_Solid(font, c, { 255, 255, 255, 255 }));
+                    font_tex[input] = SDL_CreateTextureFromSurface(renderer,
+                        TTF_RenderGlyph_Solid(font, input, { 255, 255, 255, 255 }));
                 }
             } break;
 		}
@@ -129,11 +134,14 @@ void Console::load_ttf_font()
 {
     font = TTF_OpenFont("res/font/DejaVuSansMono.ttf", 18);
 
+    if (!font)
+        MsgAndQuit("Failed to load font!");
+
     for (char c = ' '; c <= '~'; ++c)
     {
         font_tex[c] = SDL_CreateTextureFromSurface(renderer,
                         TTF_RenderGlyph_Blended(font, c, { 255, 255, 255, 255 }));
     }
 
-    SDL_QueryTexture(font_tex['A'], 0, 0, &cw, &ch);
+    SDL_QueryTexture(font_tex['A'], 0, 0, &char_w, &char_h);
 }

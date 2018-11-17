@@ -1,14 +1,66 @@
 #pragma once
 
-#include <SDL_rect.h>
+#include "char_rect.hpp"
+
+class Console;
 
 template <typename T>
 struct GapBuffer;
 
-typedef SDL_Rect Char_Rect;
+struct FileData {
+    char name[64];
+    unsigned lines;
+    unsigned characters;
+
+    FileData();
+};
 
 enum VERT_DIR { UP, DOWN };
 
-void move_cursor(VERT_DIR dir, int &view_y, int view_h, Char_Rect &cursor_line);
-GapBuffer<char>* move_cursor_vertical(VERT_DIR dir, GapBuffer<char> *cur_line, 
-    GapBuffer<GapBuffer<char>*> *file, Char_Rect &cursor_line, int &view_y, int view_h);
+struct Editor {
+    Console *p_console;
+
+    GapBuffer<GapBuffer<char>*> *file;
+    GapBuffer<char> *cur_line;
+    GapBuffer<char> *saved_line;
+    GapBuffer<char> *command_line;
+
+    FileData cur_file;
+
+    Char_Rect cursor_line;
+    Char_Rect boundary;
+
+    int old_cursor_y;
+
+    bool file_changed;
+    bool commanding;
+    
+    Editor(Console *parent, int char_height, int x, int y, int w, int h);
+    ~Editor();
+    
+    void close_file();
+    void save_file();
+    void load_file(const char *name);
+    void new_file();
+
+    void move_cursor(VERT_DIR dir);
+    void move_to_next_line(VERT_DIR dir);
+    void move_to_line(int line);
+
+    void key_return();
+    void key_backspace();
+    void key_delete();
+    void key_tab();
+    void key_up();
+    void key_down();
+    void key_left();
+    void key_right();
+    void key_page_up();
+    void key_page_down();
+    void key_escape();
+    void key_character();
+
+    void render();
+    void render_command_line();
+    void render_cursor();
+};
