@@ -1,6 +1,6 @@
 @echo off
 
-set APP_NAME="Flash"
+set APP_NAME=Flash
 set SDL2_INCLUDE="..\external\SDL2-2.0.9\include"
 set SDL2_TTF_INCLUDE="..\external\SDL2_ttf-2.0.14\include"
 set SDL2_LIB="..\external\SDL2-2.0.9\lib\x64"

@@ -160,7 +160,7 @@ void Editor::load_file(const char *name)
     {
         char str[128] = "Failed to load ";
         strcat(str, name);
-        SDL_ShowSimpleMessageBox(0, str, "Flash", 0);
+        SDL_ShowSimpleMessageBox(0, "Flash", str, 0);
     }
 }
 
@@ -268,7 +268,13 @@ void Editor::key_return()
         
         command_line->move_gap_to_end();
         command_line->insert_at_gap('\0');
-        //run_command(command_line->data);
+        char str[64];
+        strcpy(str, command_line->data);
+        if (!strcmp(str, "exit"))
+        {
+            p_console->window_open = false;
+        }
+        else if (!strcmp(str, "bs"))
         {
             p_console->invoke_self = true;
             p_console->window_open = false;    
@@ -486,14 +492,14 @@ void Editor::render()
 void Editor::render_command_line()
 {
     p_console->color_bg(20, 20, 20);
-    for (int i = 0; i < boundary.w; i++)
-        p_console->mvputch(' ', i, boundary.h - 1);
+    for (int i = 0; i <= boundary.w; ++i)
+        p_console->mvputch(' ', i, boundary.h);
 
     int j = 0;
     for (int i = 0; i < command_line->sz; ++i)
     {
         if (i < command_line->gap_start || i >= command_line->gap_end)
-            p_console->mvputch(command_line->data[i], j, boundary.h - 1);
+            p_console->mvputch(command_line->data[i], j++, boundary.h);
     }
     p_console->color_bg(0, 0, 0);
 }

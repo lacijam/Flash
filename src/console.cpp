@@ -54,6 +54,8 @@ Console::Console(const char *title, int w, int h)
     cursor.w = char_w;
     cursor.h = char_h;
 
+    SDL_RaiseWindow(window);
+
     window_open = true;
 }
 
