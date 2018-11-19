@@ -13,7 +13,7 @@ pushd build
 if not defined DevEnvDir (
 call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
 )
-cl %SRC_PATH%\*.cpp /O2 /EHsc /Fe%APP_NAME%.exe /I %SDL2_INCLUDE% /I %SDL2_TTF_INCLUDE% /link /LIBPATH:%SDL2_LIB% SDL2.lib SDL2main.lib /LIBPATH:%SDL2_TTF_LIB% SDL2_ttf.lib /SUBSYSTEM:WINDOWS
+cl %SRC_PATH%\*.cpp /O2 /EHsc /Fe%APP_NAME%.exe /I %SDL2_INCLUDE% /I %SDL2_TTF_INCLUDE% /link /LIBPATH:%SDL2_LIB% SDL2.lib SDL2main.lib /LIBPATH:%SDL2_TTF_LIB% SDL2_ttf.lib /SUBSYSTEM:CONSOLE
 move /Y %APP_NAME%.exe %OUTPUT_PATH%
 popd
 if "%1"=="-r" (

@@ -15,6 +15,12 @@ struct FileData {
     FileData();
 };
 
+struct Command {
+    char name[64];
+    char **args;
+    size_t arg_count;
+};
+
 enum VERT_DIR { UP, DOWN };
 
 struct Editor {
@@ -63,4 +69,6 @@ struct Editor {
     void render();
     void render_command_line();
     void render_cursor();
+
+    Command get_command(char *str);
 };

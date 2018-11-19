@@ -166,12 +166,16 @@ void Editor::load_file(const char *name)
 
 void Editor::new_file() 
 {
+    close_file();
+
     cur_file = FileData();
 
     file->move_gap_to_end();
     while (file->remove_at_gap());
     
     cur_line = file->data[file->gap_start - 1];
+    cur_line->move_gap_to_end();
+    while (cur_line->remove_at_gap());
     cursor_line.x = 0;
     cursor_line.y = 0;
     file_changed = false;
@@ -268,18 +272,32 @@ void Editor::key_return()
         
         command_line->move_gap_to_end();
         command_line->insert_at_gap('\0');
-        char str[64];
-        strcpy(str, command_line->data);
-        if (!strcmp(str, "exit"))
+
+        Command cmd = get_command(command_line->data);
+        printf("Command name: %s\n", cmd.name);
+        printf("Command arg_count: %llu\n", cmd.arg_count);
+        printf("Command args: ");
+        for (int i = 0; i < cmd.arg_count; i++)
+            printf("%d: %s\n", i, cmd.args[i]);
+/*
+        if (!strcmp(cmd, "exit"))
         {
             p_console->window_open = false;
         }
-        else if (!strcmp(str, "bs"))
+        else if (!strcmp(cmd, "new"))
+        {
+            new_file();
+        }
+        else if (!strcmp(cmd, "open"))
+        {
+
+        }
+        else if (!strcmp(cmd, "bs"))
         {
             p_console->invoke_self = true;
             p_console->window_open = false;    
         }
-
+*/
         cur_line = saved_line;
     }
 }
@@ -510,4 +528,26 @@ void Editor::render_cursor()
 
     p_console->color_fg(255, 255, 255);   
     p_console->fill_rect(cursor_line);
+}
+
+Command Editor::get_command(char *str)
+{
+    Command cmd = { 0 };
+    
+    char *p = str;
+    int i = 0;
+    while ((cmd.name[i] = *p), *p && *p != ' ') ++p, ++i;
+
+    cmd.args = (char**)malloc(3 * sizeof(char*));
+    char buf[4];
+    while (p != '\0' && cmd.arg_count < 3)
+    {
+        i = 0;
+        while ((buf[i] = *p), *p && *p != ' ') ++p, ++i;
+        buf[i] = '\0';
+        cmd.args[cmd.arg_count] = (char*)malloc(4);
+        strcpy(cmd.args[cmd.arg_count++], buf);
+    }
+
+    return cmd;
 }
