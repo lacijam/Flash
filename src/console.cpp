@@ -137,8 +137,9 @@ void Console::load_ttf_font(int size)
 
     for (char c = ' '; c <= '~'; ++c)
     {
-        font_tex[c] = SDL_CreateTextureFromSurface(renderer,
-                        TTF_RenderGlyph_Blended(font, c, { 255, 255, 255, 255 }));
+        SDL_Surface *surf = TTF_RenderGlyph_Blended(font, c, { 255, 255, 255, 255 });
+        font_tex[c] = SDL_CreateTextureFromSurface(renderer, surf);
+        SDL_FreeSurface(surf);
     }
 
     SDL_QueryTexture(font_tex['A'], 0, 0, &char_w, &char_h);
