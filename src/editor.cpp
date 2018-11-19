@@ -43,51 +43,54 @@ Editor::~Editor()
 void Editor::close_file() 
 {
     if (file_changed)
-        save_file();
+        save_file(true);
 }
     
-void Editor::save_file() 
+void Editor::save_file(bool prompt) 
 {
-    const SDL_MessageBoxButtonData buttons[] = {
-        { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
-        { 0,                                       1, "No" },
-        { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 2, "Yes" },
-    };
-
-    const SDL_MessageBoxColorScheme colorScheme = {
-    { /* .colors (.r, .g, .b) */
-        /* [SDL_MESSAGEBOX_COLOR_BACKGROUND] */
-        { 255,   0,   0 },
-        /* [SDL_MESSAGEBOX_COLOR_TEXT] */
-        {   0, 255,   0 },
-        /* [SDL_MESSAGEBOX_COLOR_BUTTON_BORDER] */
-        { 255, 255,   0 },
-        /* [SDL_MESSAGEBOX_COLOR_BUTTON_BACKGROUND] */
-        {   0,   0, 255 },
-        /* [SDL_MESSAGEBOX_COLOR_BUTTON_SELECTED] */
-        { 255,   0, 255 }
-    }
-    };
-
     const char *file_name = cur_file.name;
-
-    char msg[128] = "Do you want to save changes made to ";
-    strcat(msg, file_name);
-    strcat(msg, "?");
-
-    const SDL_MessageBoxData messageboxdata = {
-        SDL_MESSAGEBOX_INFORMATION, /* .flags */
-        NULL, /* .window */
-        "Flash", /* .title */
-        msg, /* .message */
-        SDL_arraysize(buttons), /* .numbuttons */
-        buttons, /* .buttons */
-        &colorScheme /* .colorScheme */
-    };
     int buttonid;
-    SDL_ShowMessageBox(&messageboxdata, &buttonid);
 
-    if (buttonid == 2)
+    if (prompt)
+    {
+        const SDL_MessageBoxButtonData buttons[] = {
+            { SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Cancel" },
+            { 0,                                       1, "No" },
+            { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 2, "Yes" },
+        };
+
+        const SDL_MessageBoxColorScheme colorScheme = {
+        { /* .colors (.r, .g, .b) */
+            /* [SDL_MESSAGEBOX_COLOR_BACKGROUND] */
+            { 255,   0,   0 },
+            /* [SDL_MESSAGEBOX_COLOR_TEXT] */
+            {   0, 255,   0 },
+            /* [SDL_MESSAGEBOX_COLOR_BUTTON_BORDER] */
+            { 255, 255,   0 },
+            /* [SDL_MESSAGEBOX_COLOR_BUTTON_BACKGROUND] */
+            {   0,   0, 255 },
+            /* [SDL_MESSAGEBOX_COLOR_BUTTON_SELECTED] */
+            { 255,   0, 255 }
+        }
+        };
+
+        char msg[128] = "Do you want to save changes made to ";
+        strcat(msg, file_name);
+        strcat(msg, "?");
+
+        const SDL_MessageBoxData messageboxdata = {
+            SDL_MESSAGEBOX_INFORMATION, /* .flags */
+            NULL, /* .window */
+            "Flash", /* .title */
+            msg, /* .message */
+            SDL_arraysize(buttons), /* .numbuttons */
+            buttons, /* .buttons */
+            &colorScheme /* .colorScheme */
+        };
+        SDL_ShowMessageBox(&messageboxdata, &buttonid);
+    }
+
+    else if (buttonid == 2 || !prompt)
     {
         FILE *f = fopen(file_name, "w+");
         
@@ -114,6 +117,16 @@ void Editor::save_file()
             }
 
             fclose(f);
+
+            // Remove the unnecessary \0 from the gap buffers.
+            for (int i = 0; i < file->sz; ++i)
+            {
+                cur_line = file->data[i];
+                cur_line->move_gap_to_end();
+                cur_line->remove_at_gap();
+            }
+
+            file_changed = false;
         }
     }
     //----------------------------   
@@ -121,8 +134,6 @@ void Editor::save_file()
 
 void Editor::load_file(const char *name) 
 {
-    close_file();
-
     new_file();
 
     FILE *f = fopen(name, "r");
@@ -138,7 +149,7 @@ void Editor::load_file(const char *name)
         char line[256];
         while (fgets(line, sizeof(line), f))
         {
-            // Trim the newline character that isn't needed.
+            // Trim the newline character that isn't needed in the gap buffer.
             if (line[strlen(line) - 1] == '\n')
                 line[strlen(line) - 1] = '\0';
             
@@ -166,8 +177,6 @@ void Editor::load_file(const char *name)
 
 void Editor::new_file() 
 {
-    close_file();
-
     cur_file = FileData();
 
     file->move_gap_to_end();
@@ -274,31 +283,32 @@ void Editor::key_return()
         command_line->insert_at_gap('\0');
 
         Command cmd = get_command(command_line->data);
-        printf("Command name: %s\n", cmd.name);
-        printf("Command arg_count: %llu\n", cmd.arg_count);
-        printf("Command args: ");
-        for (int i = 0; i < cmd.arg_count; i++)
-            printf("%d: %s\n", i, cmd.args[i]);
-/*
-        if (!strcmp(cmd, "exit"))
+
+        if (!strcmp(cmd.name, "exit"))
         {
             p_console->window_open = false;
         }
-        else if (!strcmp(cmd, "new"))
+        else if (!strcmp(cmd.name, "new"))
         {
+            close_file();
             new_file();
         }
-        else if (!strcmp(cmd, "open"))
+        else if (!strcmp(cmd.name, "open"))
         {
-
+            close_file();
+            load_file(cmd.args[0]);
         }
-        else if (!strcmp(cmd, "bs"))
+        else if (!strcmp(cmd.name, "save"))
+        {
+            save_file(false);
+        }
+        else if (!strcmp(cmd.name, "bs"))
         {
             p_console->invoke_self = true;
             p_console->window_open = false;    
         }
-*/
-        cur_line = saved_line;
+
+        toggle_cursor_mode();
     }
 }
 
@@ -452,20 +462,8 @@ void Editor::key_page_down()
 void Editor::key_escape()
 {
     commanding = !commanding;
-    if (commanding)
-    {
-        saved_line = file->data[file->gap_start - 1];
-        old_cursor_y = cursor_line.y;
-        cur_line = command_line;
-        cursor_line.y = boundary.h;
-    }
-    else
-    {
-        command_line->move_gap_to_end();
-        while (command_line->remove_at_gap());
-        cur_line = saved_line;
-        cursor_line.y = old_cursor_y;
-    }
+    
+    toggle_cursor_mode();
 }
 
 void Editor::key_character()
@@ -525,6 +523,7 @@ void Editor::render_command_line()
 void Editor::render_cursor()
 {
     cursor_line.x = boundary.x + cur_line->gap_start;
+    cursor_line.y = file->gap_start - 1 - boundary.y;
 
     p_console->color_fg(255, 255, 255);   
     p_console->fill_rect(cursor_line);
@@ -534,20 +533,50 @@ Command Editor::get_command(char *str)
 {
     Command cmd = { 0 };
     
+    // Iterate over the string until the first space is found or end of string.
     char *p = str;
     int i = 0;
     while ((cmd.name[i] = *p), *p && *p != ' ') ++p, ++i;
 
+    // Overwrite the space character with null.
+    cmd.name[i] = '\0';
+
+    // Collect any arguments.
     cmd.args = (char**)malloc(3 * sizeof(char*));
-    char buf[4];
-    while (p != '\0' && cmd.arg_count < 3)
+    while (*(++p) != '\0' && cmd.arg_count < 3)
     {
+        char buf[64];
         i = 0;
+        
+        // Iterate over the string until the next space is found or end of string.
         while ((buf[i] = *p), *p && *p != ' ') ++p, ++i;
+
+        // Overwrite the space character with null.
         buf[i] = '\0';
-        cmd.args[cmd.arg_count] = (char*)malloc(4);
+
+        cmd.args[cmd.arg_count] = (char*)malloc(64);
         strcpy(cmd.args[cmd.arg_count++], buf);
     }
 
     return cmd;
+}
+
+void Editor::toggle_cursor_mode()
+{
+    if (commanding)
+    {
+        saved_line_index = file->gap_start - 1;
+        cur_line = command_line;
+    }
+    else
+    {
+        command_line->move_gap_to_end();
+        while (command_line->remove_at_gap());
+        cur_line = file->data[saved_line_index];
+
+        // Restore the gap position.
+        file->move_gap_to_end();
+        while (file->gap_start - 1 > saved_line_index)
+            file->move_gap_left();
+    }
 }

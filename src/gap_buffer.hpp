@@ -5,7 +5,7 @@
 
 template <typename T>
 struct GapBuffer {
-    GapBuffer(int min_size);
+    GapBuffer(int min_size = 0);
     ~GapBuffer();
 
     void resize_gap(size_t new_sz);

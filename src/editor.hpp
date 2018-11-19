@@ -28,10 +28,11 @@ struct Editor {
 
     GapBuffer<GapBuffer<char>*> *file;
     GapBuffer<char> *cur_line;
-    GapBuffer<char> *saved_line;
     GapBuffer<char> *command_line;
 
     FileData cur_file;
+
+    int saved_line_index;
 
     Char_Rect cursor_line;
     Char_Rect boundary;
@@ -45,7 +46,7 @@ struct Editor {
     ~Editor();
     
     void close_file();
-    void save_file();
+    void save_file(bool prompt);
     void load_file(const char *name);
     void new_file();
 
@@ -71,4 +72,5 @@ struct Editor {
     void render_cursor();
 
     Command get_command(char *str);
+    void toggle_cursor_mode();
 };
