@@ -307,6 +307,14 @@ void Editor::key_return()
             p_console->invoke_self = true;
             p_console->window_open = false;    
         }
+        else if (!strcmp(cmd.name, "font-size"))
+        {
+            p_console->free_font_textures();
+            p_console->load_ttf_font(atoi(cmd.args[0]));
+            cursor_line.h = p_console->char_h;
+            boundary.w = p_console->cols;
+            boundary.h = p_console->rows;
+        }
 
         toggle_cursor_mode();
     }
@@ -508,14 +516,14 @@ void Editor::render()
 void Editor::render_command_line()
 {
     p_console->color_bg(20, 20, 20);
-    for (int i = 0; i <= boundary.w; ++i)
-        p_console->mvputch(' ', i, boundary.h);
+    for (int i = 0; i < boundary.w - 1; ++i)
+        p_console->mvputch(' ', i, boundary.h - 1);
 
     int j = 0;
     for (int i = 0; i < command_line->sz; ++i)
     {
         if (i < command_line->gap_start || i >= command_line->gap_end)
-            p_console->mvputch(command_line->data[i], j++, boundary.h);
+            p_console->mvputch(command_line->data[i], j++, boundary.h - 1);
     }
     p_console->color_bg(0, 0, 0);
 }

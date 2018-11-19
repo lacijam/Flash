@@ -46,13 +46,7 @@ Console::Console(const char *title, int w, int h)
     if (!TTF_WasInit())
         MsgAndQuit("Failed to initialize SDL ttf!");
 
-    load_ttf_font();
-
-    rows = window_h / char_h;
-    cols = window_w / char_w;
-
-    cursor.w = char_w;
-    cursor.h = char_h;
+    load_ttf_font(18);
 
     SDL_RaiseWindow(window);
 
@@ -130,11 +124,13 @@ void Console::free_font_textures()
         SDL_DestroyTexture(t.second);
 
     font_tex.clear();
+
+    TTF_CloseFont(font);
 }
 
-void Console::load_ttf_font()
+void Console::load_ttf_font(int size)
 {
-    font = TTF_OpenFont("res/font/DejaVuSansMono.ttf", 18);
+    font = TTF_OpenFont("res/font/DejaVuSansMono.ttf", size);
 
     if (!font)
         MsgAndQuit("Failed to load font!");
@@ -146,4 +142,10 @@ void Console::load_ttf_font()
     }
 
     SDL_QueryTexture(font_tex['A'], 0, 0, &char_w, &char_h);
+
+    rows = window_h / char_h;
+    cols = window_w / char_w;
+
+    cursor.w = char_w;
+    cursor.h = char_h;
 }

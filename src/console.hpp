@@ -55,6 +55,9 @@ public:
 
     Uint8 alpha;
 
+    void load_ttf_font(int size);
+    void free_font_textures();
+
 private: 
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -64,8 +67,6 @@ private:
     unsigned font_length;
     std::unordered_map<char, SDL_Texture*> font_tex;
 
-    void load_ttf_font();
-    void free_font_textures();
 };
 
 inline void Console::clear()
