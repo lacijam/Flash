@@ -17,6 +17,7 @@ Console::Console(const char *title, int w, int h)
       cursor({ 0, 0, 0, 0 }),
       window_open(false),
       cur_key(0),
+      ctrl(false),
       input(0),
       char_w(0),
       char_h(0),
@@ -96,6 +97,8 @@ void Console::poll_events()
                     case SDL_WINDOWEVENT_RESIZED: 
                     {
                         SDL_GetWindowSize(window, &window_w, &window_h); 
+                        rows = window_h / char_h;
+                        cols = window_w / char_w;
                     } break;
                 }
             } break;
@@ -103,7 +106,9 @@ void Console::poll_events()
 			case SDL_KEYDOWN:
 			{
                 cur_key = (event.key.keysym.sym - ((event.key.keysym.mod & KMOD_LSHIFT) ? 32 : 0));
-			} break;
+
+                ctrl = event.key.keysym.mod & KMOD_LCTRL;
+            } break;
 
             case SDL_TEXTINPUT:
             {

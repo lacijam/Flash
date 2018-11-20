@@ -20,7 +20,11 @@ int main(int argc, char *argv[])
     {
         app->poll_events();
 
-        if (app->is_key_pressed(SDLK_RETURN))
+        if (app->input)
+        {
+            editor->key_character();
+        }
+        else if (app->is_key_pressed(SDLK_RETURN))
         {
             editor->key_return();
         }
@@ -46,11 +50,17 @@ int main(int argc, char *argv[])
         }
         else if (app->is_key_pressed(SDLK_LEFT))
         {
-            editor->key_left();
+            if (app->ctrl)
+                editor->key_ctrl_left();
+            else
+                editor->key_left();
         }
         else if (app->is_key_pressed(SDLK_RIGHT))
         {
-            editor->key_right();
+            if (app->ctrl)
+                editor->key_ctrl_right();
+            else
+                editor->key_right();
         }
         else if (app->is_key_pressed(SDLK_PAGEUP))
         {
@@ -65,10 +75,9 @@ int main(int argc, char *argv[])
             editor->key_escape();
         }
 
-        if (app->input)
-        {
-            editor->key_character();
-        }
+        // For now
+        editor->boundary.w = app->cols - 1;
+        editor->boundary.h = app->rows - 1;
 
         app->clear();
 

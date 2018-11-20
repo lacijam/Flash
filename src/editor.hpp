@@ -62,6 +62,8 @@ struct Editor {
     void key_down();
     void key_left();
     void key_right();
+    void key_ctrl_left();
+    void key_ctrl_right();
     void key_page_up();
     void key_page_down();
     void key_escape();

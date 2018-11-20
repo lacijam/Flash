@@ -34,6 +34,9 @@ public:
 
 	bool is_key_pressed(SDL_Keycode code);
     
+    void load_ttf_font(int size);
+    void free_font_textures();
+
     Char_Rect cursor;
 
     SDL_Color fg_mask;
@@ -47,6 +50,7 @@ public:
     int rows, cols;
 
     SDL_Keycode cur_key;
+    bool ctrl;
 
     bool invoke_self;
     bool window_open;
@@ -54,9 +58,6 @@ public:
     char input;
 
     Uint8 alpha;
-
-    void load_ttf_font(int size);
-    void free_font_textures();
 
 private: 
     SDL_Window *window;
@@ -66,7 +67,6 @@ private:
     
     unsigned font_length;
     std::unordered_map<char, SDL_Texture*> font_tex;
-
 };
 
 inline void Console::clear()

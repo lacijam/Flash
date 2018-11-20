@@ -3,6 +3,7 @@
 #include "gap_buffer.hpp"
 
 #include <stdio.h>
+#include <ctype.h>
 
 #include <SDL.h>
 
@@ -49,7 +50,7 @@ void Editor::close_file()
 void Editor::save_file(bool prompt) 
 {
     const char *file_name = cur_file.name;
-    int buttonid;
+    int buttonid = 0;
 
     if (prompt)
     {
@@ -88,9 +89,10 @@ void Editor::save_file(bool prompt)
             &colorScheme /* .colorScheme */
         };
         SDL_ShowMessageBox(&messageboxdata, &buttonid);
+        printf("%d", buttonid);
     }
-
-    else if (buttonid == 2 || !prompt)
+    
+    if (buttonid == 2 || !prompt)
     {
         FILE *f = fopen(file_name, "w+");
         
@@ -449,6 +451,32 @@ void Editor::key_right()
     }
 }
 
+void Editor::key_ctrl_left()
+{
+    bool skip_alpha_num = isalpha(cur_line->data[cur_line->gap_start - 1]) || 
+                          isdigit(cur_line->data[cur_line->gap_start - 1]);
+    while (((bool)isalpha(cur_line->data[cur_line->gap_start - 1]) ||
+           (bool)isdigit(cur_line->data[cur_line->gap_start - 1])) == skip_alpha_num)
+    {
+        key_left();
+    }
+}
+
+void Editor::key_ctrl_right()
+{
+    key_right();
+
+    bool skip_alpha_num = isalpha(cur_line->data[cur_line->gap_start - 1]) || 
+                          isdigit(cur_line->data[cur_line->gap_start - 1]);
+    while (((bool)isalpha(cur_line->data[cur_line->gap_start - 1]) ||
+           (bool)isdigit(cur_line->data[cur_line->gap_start - 1])) == skip_alpha_num)
+    {
+        key_right();
+    }
+
+    key_left();
+}
+
 void Editor::key_page_up()
 {
     if (!commanding)
@@ -475,9 +503,9 @@ void Editor::key_escape()
 }
 
 void Editor::key_character()
-{
+{    
     cur_line->insert_at_gap(p_console->input);
-            
+
     if (!commanding)
         file_changed = true;
 }
