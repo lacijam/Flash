@@ -7,6 +7,7 @@
     } while (0)
 
 void dummy_window_resize_callback(Console *app) {}
+void dummy_font_load_callback(Console *app) {}
     
 Console::Console(const char *title, int w, int h)
     : window_w(w),
@@ -26,6 +27,7 @@ Console::Console(const char *title, int w, int h)
       invoke_self(false),
       cur_file_name("Flash"),
       window_resize_callback(dummy_window_resize_callback),
+      font_load_callback(dummy_font_load_callback),
       user_data(0)
 {
     if (SDL_Init(SDL_INIT_VIDEO))
@@ -159,4 +161,6 @@ void Console::load_ttf_font(int size)
 
     cursor.w = char_w;
     cursor.h = char_h;
+
+    font_load_callback(this);
 }

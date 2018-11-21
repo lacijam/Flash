@@ -39,6 +39,7 @@ public:
     void free_font_textures();
 
     void (*window_resize_callback)(Console*);
+    void (*font_load_callback)(Console*);
 
     void *user_data;
 

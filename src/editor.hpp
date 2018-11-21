@@ -53,6 +53,7 @@ struct Editor {
     void move_cursor(VERT_DIR dir);
     void move_to_next_line(VERT_DIR dir);
     void move_to_line(int line);
+    void orient_cursor();
 
     void key_return();
     void key_backspace();

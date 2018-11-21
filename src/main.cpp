@@ -11,9 +11,19 @@ void on_window_resize(Console *app)
     editor->boundary.w = app->cols - 1;
     editor->boundary.h = app->rows - 1;
 
+    editor->orient_cursor();
+
     app->clear();
     editor->render();
     app->present();
+}
+
+void on_font_load(Console *app)
+{
+    Editor *editor = (Editor*)app->user_data;
+    editor->boundary.w = app->cols - 1;
+    editor->boundary.h = app->rows - 1;
+    editor->cursor_line.h = app->char_h;
 }
 
 int main(int argc, char *argv[])
@@ -22,6 +32,7 @@ int main(int argc, char *argv[])
     Editor *editor = new Editor(app, app->char_h, 0, 0, app->cols - 1, app->rows - 1);
 
     app->window_resize_callback = &on_window_resize;
+    app->font_load_callback = &on_font_load;
     app->user_data = editor;
 
     bool invoke = false;
@@ -95,6 +106,8 @@ int main(int argc, char *argv[])
 
         if (app->is_any_key_pressed())
         {
+            app->clear();
+            editor->render();
             app->clear();
             editor->render();
             app->present();

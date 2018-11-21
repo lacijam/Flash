@@ -247,6 +247,20 @@ void Editor::move_to_line(int line)
 
 }
 
+void Editor::orient_cursor()
+{
+    if (cursor_line.y > boundary.h)
+    {
+        while (file->gap_start - 1 > boundary.y + boundary.h)
+        {
+            file->move_gap_left();
+        }
+        
+        cur_line = file->data[file->gap_start - 1];
+        cur_line->move_gap_to_end();
+    }
+};
+
 void Editor::key_return() 
 {
     if (!commanding)
@@ -313,9 +327,6 @@ void Editor::key_return()
         {
             p_console->free_font_textures();
             p_console->load_ttf_font(atoi(cmd.args[0]));
-            cursor_line.h = p_console->char_h;
-            boundary.w = p_console->cols;
-            boundary.h = p_console->rows;
         }
 
         toggle_cursor_mode();
@@ -589,7 +600,10 @@ void Editor::render_cursor(int wrapped_lines)
     }
 
     cursor_line.y += wrapped_lines;
-
+    if (cursor_line.y > boundary.h)
+        ++boundary.y;
+    else if (cursor_line.y < 0)
+        --boundary.y;
 
     p_console->color_fg(255, 255, 255);   
     p_console->fill_rect(cursor_line);
