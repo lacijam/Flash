@@ -71,7 +71,7 @@ struct Editor {
 
     void render();
     void render_command_line();
-    void render_cursor();
+    void render_cursor(int wrapped_lines);
 
     Command get_command(char *str);
     void toggle_cursor_mode();

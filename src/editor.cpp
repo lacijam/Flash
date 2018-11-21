@@ -512,10 +512,12 @@ void Editor::key_character()
 
 void Editor::render()
 {
-    int skipped_lines = 0;
+    int skipped_lines = 0; // To skip over the empty gap lines.
+    int wrapped_lines = 0;
+    int cursor_y_offset = 0;
     for (int line_index = 0; line_index < file->sz; ++line_index)
     {
-        int line_screen_y = line_index - skipped_lines - boundary.y;
+        int line_screen_y = (line_index - skipped_lines - boundary.y) + wrapped_lines;
         if (line_screen_y >= 0 && line_screen_y <= boundary.h)
         {
             if (line_index < file->gap_start || line_index >= file->gap_end)
@@ -525,7 +527,24 @@ void Editor::render()
                 for (int i = 0; i < line->sz; ++i)
                 {
                     if (i < line->gap_start || i >= line->gap_end)
+                    {
+                        // While instead of if, we might need to wrap multiple lines at once.
+                        while (j > boundary.w - 1)
+                        {
+                            j -= boundary.w - 1;
+                            ++line_screen_y;
+                            ++wrapped_lines;
+                        }
+                        
                         p_console->mvputch(line->data[i], j++, line_screen_y);
+                    }
+
+                    // If the cursor has been found, render it and pass the amount
+                    // of lines wrapped.
+                    else if (i == line->gap_start && line_index == file->gap_start - 1)
+                    {
+                        cursor_y_offset = wrapped_lines;
+                    }
                 }
             }
             else
@@ -538,7 +557,7 @@ void Editor::render()
         render_command_line();
     }
 
-    render_cursor();
+    render_cursor(cursor_y_offset);
 }
 
 void Editor::render_command_line()
@@ -556,10 +575,21 @@ void Editor::render_command_line()
     p_console->color_bg(0, 0, 0);
 }
 
-void Editor::render_cursor()
+void Editor::render_cursor(int wrapped_lines)
 {
     cursor_line.x = boundary.x + cur_line->gap_start;
-    cursor_line.y = file->gap_start - 1 - boundary.y;
+    cursor_line.y = (file->gap_start - 1 - boundary.y);
+
+    // While instead of if, we might need to wrap multiple lines at once.
+    while (cursor_line.x > boundary.w)
+    {
+        // Wrap one character less then the line so
+        // that the cursor remains in front of the text.
+        cursor_line.x -= boundary.w - 1;
+    }
+
+    cursor_line.y += wrapped_lines;
+
 
     p_console->color_fg(255, 255, 255);   
     p_console->fill_rect(cursor_line);
