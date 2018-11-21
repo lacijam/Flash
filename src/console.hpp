@@ -33,9 +33,14 @@ public:
     void update_window_title();
 
 	bool is_key_pressed(SDL_Keycode code);
+    bool is_any_key_pressed();
     
     void load_ttf_font(int size);
     void free_font_textures();
+
+    void (*window_resize_callback)(Console*);
+
+    void *user_data;
 
     Char_Rect cursor;
 
@@ -151,4 +156,9 @@ inline void Console::update_window_title()
 inline bool Console::is_key_pressed(SDL_Keycode k)
 {
     return (cur_key == k);
+}
+
+inline bool Console::is_any_key_pressed()
+{
+    return cur_key;
 }

@@ -5,6 +5,8 @@
        SDL_ShowSimpleMessageBox(0, "Error!", text, 0); \
        exit(0);                                        \
     } while (0)
+
+void dummy_window_resize_callback(Console *app) {}
     
 Console::Console(const char *title, int w, int h)
     : window_w(w),
@@ -22,7 +24,9 @@ Console::Console(const char *title, int w, int h)
       char_w(0),
       char_h(0),
       invoke_self(false),
-      cur_file_name("Flash")
+      cur_file_name("Flash"),
+      window_resize_callback(dummy_window_resize_callback),
+      user_data(0)
 {
     if (SDL_Init(SDL_INIT_VIDEO))
         MsgAndQuit("Failed to initialize SDL!");
@@ -78,11 +82,10 @@ void Console::set_alpha(bool value)
 
 void Console::poll_events()
 {
-    cur_key = 0;
-
     SDL_Event event;
 
     input = 0;
+    cur_key = 0;
 
     while (SDL_PollEvent(&event))
     {
@@ -99,6 +102,8 @@ void Console::poll_events()
                         SDL_GetWindowSize(window, &window_w, &window_h); 
                         rows = window_h / char_h;
                         cols = window_w / char_w;
+
+                        window_resize_callback(this);
                     } break;
                 }
             } break;

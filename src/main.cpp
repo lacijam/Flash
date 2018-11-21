@@ -5,16 +5,34 @@
 #include "gap_buffer.hpp"
 #include "editor.hpp"
 
+void on_window_resize(Console *app)
+{
+    Editor *editor = (Editor*)app->user_data;
+    editor->boundary.w = app->cols - 1;
+    editor->boundary.h = app->rows - 1;
+
+    app->clear();
+    editor->render();
+    app->present();
+}
+
 int main(int argc, char *argv[])
 {
     Console *app = new Console("Flash", 1000, 600);
     Editor *editor = new Editor(app, app->char_h, 0, 0, app->cols - 1, app->rows - 1);
+
+    app->window_resize_callback = &on_window_resize;
+    app->user_data = editor;
 
     bool invoke = false;
     char invoke_file[128];
 
     if (argc > 1)
         editor->load_file(argv[1]);
+
+    app->clear();
+    editor->render();
+    app->present();
 
     while (app->window_open)
     {
@@ -73,17 +91,14 @@ int main(int argc, char *argv[])
         else if (app->is_key_pressed(SDLK_ESCAPE))
         {
             editor->key_escape();
+        }   
+
+        if (app->is_any_key_pressed())
+        {
+            app->clear();
+            editor->render();
+            app->present();
         }
-
-        // For now
-        editor->boundary.w = app->cols - 1;
-        editor->boundary.h = app->rows - 1;
-
-        app->clear();
-
-        editor->render();
-
-        app->present();
 
         SDL_Delay(16);
     }
