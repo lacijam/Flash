@@ -542,6 +542,7 @@ void Editor::render()
                         // While instead of if, we might need to wrap multiple lines at once.
                         while (j > boundary.w - 1)
                         {
+                            p_console->color_bg(30, 30, 30);
                             j -= boundary.w - 1;
                             ++line_screen_y;
                             ++wrapped_lines;
@@ -557,6 +558,8 @@ void Editor::render()
                         cursor_y_offset = wrapped_lines;
                     }
                 }
+
+                p_console->color_bg(0, 0, 0);
             }
             else
                 ++skipped_lines;
