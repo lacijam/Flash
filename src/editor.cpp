@@ -123,9 +123,12 @@ void Editor::save_file(bool prompt)
             // Remove the unnecessary \0 from the gap buffers.
             for (int i = 0; i < file->sz; ++i)
             {
-                cur_line = file->data[i];
+                cur_line = file->data[i];                
                 cur_line->move_gap_to_end();
-                cur_line->remove_at_gap();
+                
+                //@TODO: Some file don't have a '\0' at the end of each line??? e.g build.bat
+                if (cur_line->data[cur_line->gap_start - 1] == '\0')
+                    cur_line->remove_at_gap();
             }
 
             file_changed = false;
@@ -199,7 +202,7 @@ void Editor::move_cursor(VERT_DIR dir)
 {
     if (dir == UP)
     {
-        if (cursor_line.y == 0)
+        if (cursor_line.y <= 0)
         {
             --boundary.y;
 
@@ -211,7 +214,7 @@ void Editor::move_cursor(VERT_DIR dir)
     }
     else
     {
-        if (cursor_line.y == boundary.h)
+        if (cursor_line.y > boundary.h)
             ++boundary.y;
         else
             ++cursor_line.y;
@@ -251,7 +254,7 @@ void Editor::orient_cursor()
 {
     if (cursor_line.y > boundary.h)
     {
-        while (file->gap_start - 1 > boundary.y + boundary.h)
+        while (file->gap_start - 1 > boundary.y +  boundary.h)
         {
             file->move_gap_left();
         }
@@ -492,7 +495,7 @@ void Editor::key_page_up()
 {
     if (!commanding)
     {
-        for (int i = 0; i < boundary.h; i++)
+        for (int i = 0; i <= boundary.h; i++)
             move_to_next_line(UP);
     }
 }
@@ -501,7 +504,7 @@ void Editor::key_page_down()
 {
     if (!commanding)
     {
-        for (int i = 0; i < boundary.h; i++)
+        for (int i = 0; i <= boundary.h; i++)
             move_to_next_line(DOWN);
     }
 }
@@ -548,7 +551,7 @@ void Editor::render()
                             ++wrapped_lines;
                         }
                         
-                        p_console->mvputch(line->data[i], j++, line_screen_y);
+                        p_console->mvputch(line->data[i], boundary.x + j++, line_screen_y);
                     }
 
                     // If the cursor has been found, render it and pass the amount
@@ -577,14 +580,14 @@ void Editor::render()
 void Editor::render_command_line()
 {
     p_console->color_bg(20, 20, 20);
-    for (int i = 0; i < boundary.w - 1; ++i)
-        p_console->mvputch(' ', i, boundary.h - 1);
+    for (int i = 0; i <= boundary.w + 1; ++i)
+        p_console->mvputch(' ', boundary.x + i, boundary.h);
 
     int j = 0;
     for (int i = 0; i < command_line->sz; ++i)
     {
         if (i < command_line->gap_start || i >= command_line->gap_end)
-            p_console->mvputch(command_line->data[i], j++, boundary.h - 1);
+            p_console->mvputch(command_line->data[i], boundary.x + j++, boundary.h);
     }
     p_console->color_bg(0, 0, 0);
 }
@@ -592,7 +595,9 @@ void Editor::render_command_line()
 void Editor::render_cursor(int wrapped_lines)
 {
     cursor_line.x = boundary.x + cur_line->gap_start;
-    cursor_line.y = (file->gap_start - 1 - boundary.y);
+    
+    if (!commanding)
+        cursor_line.y = (file->gap_start - 1 - boundary.y);
 
     // While instead of if, we might need to wrap multiple lines at once.
     while (cursor_line.x > boundary.w)
@@ -647,7 +652,8 @@ Command Editor::get_command(char *str)
 void Editor::toggle_cursor_mode()
 {
     if (commanding)
-    {
+    {  
+        cursor_line.y = boundary.h;
         saved_line_index = file->gap_start - 1;
         cur_line = command_line;
     }
@@ -655,11 +661,12 @@ void Editor::toggle_cursor_mode()
     {
         command_line->move_gap_to_end();
         while (command_line->remove_at_gap());
-        cur_line = file->data[saved_line_index];
 
         // Restore the gap position.
-        file->move_gap_to_end();
-        while (file->gap_start - 1 > saved_line_index)
-            file->move_gap_left();
+        file->move_gap_to_start();
+        while (file->gap_start - 1 < saved_line_index)
+            file->move_gap_right();
+
+        cur_line = file->data[file->gap_start - 1];
     }
 }

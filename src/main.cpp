@@ -29,7 +29,7 @@ void on_font_load(Console *app)
 int main(int argc, char *argv[])
 {
     Console *app = new Console("Flash", 1000, 600);
-    Editor *editor = new Editor(app, app->char_h, 0, 0, app->cols - 1, app->rows - 1);
+    Editor *editor = new Editor(app, app->char_h, 5, 0, app->cols - 1, app->rows - 1);
 
     app->window_resize_callback = &on_window_resize;
     app->font_load_callback = &on_font_load;
