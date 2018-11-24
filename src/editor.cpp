@@ -214,7 +214,7 @@ void Editor::move_cursor(VERT_DIR dir)
     }
     else
     {
-        if (cursor_line.y > boundary.h)
+        if (cursor_line.y >= boundary.h)
             ++boundary.y;
         else
             ++cursor_line.y;
@@ -223,16 +223,29 @@ void Editor::move_cursor(VERT_DIR dir)
 
 void Editor::move_to_next_line(VERT_DIR dir)
 {
-    if ((dir == UP) ? file->move_gap_left() : file->move_gap_right())
+    int old_length = cur_line->sz - (cur_line->gap_end - cur_line->gap_start);
+    int old_gap_start = cur_line->gap_start;
+
+    // If the line is wrapped and there is room to move
+    // the cursor to the next wrapped line then just move the cursor a full view width.
+    if (dir == UP && old_length - (old_length - old_gap_start) > boundary.w - boundary.x)
     {
-        int old_length = cur_line->sz - (cur_line->gap_end - cur_line->gap_start);
-        int old_gap_start = cur_line->gap_start;
- 
+        for (int i = 0; i < boundary.w - boundary.x; i++)
+            cur_line->move_gap_left();
+    }
+    else if (dir == DOWN && (old_length - old_gap_start) > boundary.w - boundary.h)
+    {
+        for (int i = 0; i < boundary.w - boundary.x; i++)
+            cur_line->move_gap_right();
+    }
+    else if ((dir == UP) ? file->move_gap_left() : file->move_gap_right())
+    { 
         cur_line = file->data[file->gap_start - 1]; 
         cur_line->move_gap_to_end();
 
         // If the UP or DOWN was pressed and the cursor is not at the end of the line,
         // move the cursor back to its original horizontal position as much as possible. 
+        // e.g Moving from a shorter line too a longer line.
         if (old_gap_start < old_length)
         {
             while (cur_line->gap_start > old_gap_start) 
@@ -254,7 +267,7 @@ void Editor::orient_cursor()
 {
     if (cursor_line.y > boundary.h)
     {
-        while (file->gap_start - 1 > boundary.y +  boundary.h)
+        while (file->gap_start - 1 > boundary.y + boundary.h)
         {
             file->move_gap_left();
         }
@@ -543,10 +556,10 @@ void Editor::render()
                     if (i < line->gap_start || i >= line->gap_end)
                     {
                         // While instead of if, we might need to wrap multiple lines at once.
-                        while (j > boundary.w - 1)
+                        while (boundary.x + j > boundary.w)
                         {
                             p_console->color_bg(30, 30, 30);
-                            j -= boundary.w - 1;
+                            j -= boundary.w - boundary.x;
                             ++line_screen_y;
                             ++wrapped_lines;
                         }
@@ -554,8 +567,7 @@ void Editor::render()
                         p_console->mvputch(line->data[i], boundary.x + j++, line_screen_y);
                     }
 
-                    // If the cursor has been found, render it and pass the amount
-                    // of lines wrapped.
+                    // If the cursor has been found, store the amount of wrapped lines upto now.
                     else if (i == line->gap_start && line_index == file->gap_start - 1)
                     {
                         cursor_y_offset = wrapped_lines;
@@ -597,21 +609,23 @@ void Editor::render_cursor(int wrapped_lines)
     cursor_line.x = boundary.x + cur_line->gap_start;
     
     if (!commanding)
-        cursor_line.y = (file->gap_start - 1 - boundary.y);
-
-    // While instead of if, we might need to wrap multiple lines at once.
-    while (cursor_line.x > boundary.w)
     {
-        // Wrap one character less then the line so
-        // that the cursor remains in front of the text.
-        cursor_line.x -= boundary.w - 1;
-    }
+        cursor_line.y = (file->gap_start - 1) - boundary.y;
 
-    cursor_line.y += wrapped_lines;
-    if (cursor_line.y > boundary.h)
-        ++boundary.y;
-    else if (cursor_line.y < 0)
-        --boundary.y;
+        // While instead of if, we might need to wrap multiple lines at once.
+        while (cursor_line.x > boundary.w + 1)
+        {
+            // Wrap one character less then the line so
+            // that the cursor remains in front of the text.
+            cursor_line.x -= boundary.w - boundary.x;
+        }
+
+        cursor_line.y += wrapped_lines;
+        if (cursor_line.y > boundary.h)
+            ++boundary.y;
+        else if (cursor_line.y < 0)
+            --boundary.y;
+    }
 
     p_console->color_fg(255, 255, 255);   
     p_console->fill_rect(cursor_line);
