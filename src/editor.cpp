@@ -24,7 +24,8 @@ Editor::Editor(Console *parent, int char_height, int x, int y, int w, int h)
       boundary({ x, y, w, h }),
       old_cursor_y (0),
       file_changed (false),
-      commanding (false)
+      commanding (false),
+      number_lines (false)
 {
     //@TODO: Check for if parent is null.
 
@@ -306,6 +307,7 @@ void Editor::key_return()
         move_cursor(DOWN);
 
         file_changed = true;
+        ++cur_file.lines;
     }
     else
     {
@@ -343,6 +345,20 @@ void Editor::key_return()
         {
             p_console->free_font_textures();
             p_console->load_ttf_font(atoi(cmd.args[0]));
+        }
+        else if (!strcmp(cmd.name, "number"))
+        {
+            number_lines = !number_lines;
+            if (number_lines)
+            {
+                char line_num[7];
+                snprintf(line_num, 7, "%d", cur_file.lines);
+                boundary.x = strlen(line_num) + 3;
+            }
+            else
+            {
+                boundary.x = 0;
+            }
         }
 
         toggle_cursor_mode();
@@ -382,6 +398,7 @@ void Editor::key_backspace()
             move_cursor(UP);
 
             file_changed = true;
+            ++cur_file.lines;
         }
     }
 }
@@ -417,6 +434,7 @@ void Editor::key_delete()
                 cur_line->move_gap_left(), --i;
 
             file_changed = true;
+            ++cur_file.lines;
         }
     }
 }
@@ -549,6 +567,12 @@ void Editor::render()
         {
             if (line_index < file->gap_start || line_index >= file->gap_end)
             {
+                if (number_lines)
+                {
+                    char line_num[7];
+                    snprintf(line_num, 7, "%d", (line_index - skipped_lines) + 1);
+                    p_console->mvputstr(line_num, 1, line_screen_y);
+                }
                 GapBuffer<char> *line = file->data[line_index];
                 int j = 0;
                 for (int i = 0; i < line->sz; ++i)

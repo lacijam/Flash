@@ -41,6 +41,7 @@ struct Editor {
 
     bool file_changed;
     bool commanding;
+    bool number_lines;
     
     Editor(Console *parent, int char_height, int x, int y, int w, int h);
     ~Editor();
