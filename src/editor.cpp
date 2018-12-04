@@ -25,7 +25,8 @@ Editor::Editor(Console *parent, int char_height, int x, int y, int w, int h)
       old_cursor_y (0),
       file_changed (false),
       commanding (false),
-      number_lines (false)
+      number_lines (false),
+      selecting (false)
 {
     //@TODO: Check for if parent is null.
 
@@ -194,6 +195,7 @@ void Editor::new_file()
     cursor_line.x = 0;
     cursor_line.y = 0;
     file_changed = false;
+    selecting = false;
 
     p_console->cur_file_name = cur_file.name;
     p_console->update_window_title();
@@ -206,9 +208,9 @@ void Editor::move_cursor(VERT_DIR dir)
         if (cursor_line.y <= 0)
         {
             --boundary.y;
-
+            
             if (boundary.y < 0)
-                boundary.y = 0;        
+                boundary.y = 0;
         }
         else
             --cursor_line.y;
@@ -231,12 +233,12 @@ void Editor::move_to_next_line(VERT_DIR dir)
     // the cursor to the next wrapped line then just move the cursor a full view width.
     if (dir == UP && old_length - (old_length - old_gap_start) > boundary.w - boundary.x)
     {
-        for (int i = 0; i < boundary.w - boundary.x; i++)
+        for (int i = 0; i < boundary.w - boundary.x; ++i)
             cur_line->move_gap_left();
     }
     else if (dir == DOWN && (old_length - old_gap_start) > boundary.w - boundary.h)
     {
-        for (int i = 0; i < boundary.w - boundary.x; i++)
+        for (int i = 0; i < boundary.w - boundary.x; ++i)
             cur_line->move_gap_right();
     }
     else if ((dir == UP) ? file->move_gap_left() : file->move_gap_right())
@@ -501,9 +503,19 @@ void Editor::key_ctrl_left()
     bool skip_alpha_num = isalpha(cur_line->data[cur_line->gap_start - 1]) || 
                           isdigit(cur_line->data[cur_line->gap_start - 1]);
     while (((bool)isalpha(cur_line->data[cur_line->gap_start - 1]) ||
-           (bool)isdigit(cur_line->data[cur_line->gap_start - 1])) == skip_alpha_num)
+            (bool)isdigit(cur_line->data[cur_line->gap_start - 1])) == skip_alpha_num &&
+            cur_line->move_gap_left())
     {
-        key_left();
+        if (!commanding)
+        {
+            if (file->move_gap_left())
+            {
+                cur_line = file->data[file->gap_start - 1];
+                cur_line->move_gap_to_start();
+
+                move_cursor(UP);
+            }
+        }
     }
 }
 
@@ -514,12 +526,42 @@ void Editor::key_ctrl_right()
     bool skip_alpha_num = isalpha(cur_line->data[cur_line->gap_start - 1]) || 
                           isdigit(cur_line->data[cur_line->gap_start - 1]);
     while (((bool)isalpha(cur_line->data[cur_line->gap_start - 1]) ||
-           (bool)isdigit(cur_line->data[cur_line->gap_start - 1])) == skip_alpha_num)
+            (bool)isdigit(cur_line->data[cur_line->gap_start - 1])) == skip_alpha_num &&
+            cur_line->move_gap_right())
     {
-        key_right();
+        if (!commanding)
+        {
+            if (file->move_gap_right())
+            {
+                cur_line = file->data[file->gap_start - 1];
+                cur_line->move_gap_to_end();
+
+                move_cursor(DOWN);
+            }
+        }
     }
 
     key_left();
+}
+
+void Editor::key_shift_left()
+{
+
+}
+
+void Editor::key_shift_right()
+{
+
+}
+
+void Editor::key_shift_up()
+{
+
+}
+
+void Editor::key_shift_down()
+{
+
 }
 
 void Editor::key_page_up()
@@ -586,6 +628,15 @@ void Editor::render()
                             j -= boundary.w - boundary.x;
                             ++line_screen_y;
                             ++wrapped_lines;
+                        }
+
+                        if (selecting)
+                        {
+                            if (j >= selection.x && j <= selection.x + selection.w &&
+                                line_screen_y >= selection.y && line_screen_y <= selection.y + selection.h)
+                            {
+                                p_console->color_bg(60, 60, 60);
+                            }
                         }
                         
                         p_console->mvputch(line->data[i], boundary.x + j++, line_screen_y);

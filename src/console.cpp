@@ -21,6 +21,7 @@ Console::Console(const char *title, int w, int h)
       window_open(false),
       cur_key(0),
       ctrl(false),
+      shift(false),
       input(0),
       char_w(0),
       char_h(0),
@@ -115,6 +116,7 @@ void Console::poll_events()
                 cur_key = (event.key.keysym.sym - ((event.key.keysym.mod & KMOD_LSHIFT) ? 32 : 0));
 
                 ctrl = event.key.keysym.mod & KMOD_LCTRL;
+                shift = event.key.keysym.mod & KMOD_LSHIFT;
             } break;
 
             case SDL_TEXTINPUT:

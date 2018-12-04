@@ -57,6 +57,7 @@ public:
 
     SDL_Keycode cur_key;
     bool ctrl;
+    bool shift;
 
     bool invoke_self;
     bool window_open;

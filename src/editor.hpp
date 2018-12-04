@@ -37,7 +37,11 @@ struct Editor {
     Char_Rect cursor_line;
     Char_Rect boundary;
 
+    Char_Rect selection;
+
     int old_cursor_y;
+
+    bool selecting;
 
     bool file_changed;
     bool commanding;
@@ -66,6 +70,10 @@ struct Editor {
     void key_right();
     void key_ctrl_left();
     void key_ctrl_right();
+    void key_shift_left();
+    void key_shift_right();
+    void key_shift_up();
+    void key_shift_down();
     void key_page_up();
     void key_page_down();
     void key_escape();
