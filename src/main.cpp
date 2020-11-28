@@ -1,135 +1,149 @@
-#include <SDL.h>
+#include "gap_buffer.h"
 
-#include "Console.hpp"
-#include "char_rect.hpp"
-#include "gap_buffer.hpp"
-#include "editor.hpp"
+#include <windows.h>
+#include <assert.h>
 
-void on_window_resize(Console *app)
+struct EditorData {
+    HFONT font;
+    GapBuffer *gb;
+};
+
+LRESULT CALLBACK handle_message(EditorData *data, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    Editor *editor = (Editor*)app->user_data;
-    editor->boundary.w = app->cols - 1;
-    editor->boundary.h = app->rows - 1;
+    LRESULT result = 0;
+    switch (msg) {
+        case WM_DESTROY: {
+            gap_buffer_destroy(data->gb);
+            PostQuitMessage(0);
+            return 0;
+        } break;
 
-    editor->orient_cursor();
+        case WM_DPICHANGED: {
+            RECT new_window_pos = *(RECT*)lParam;
+            u32 cx = new_window_pos.right - new_window_pos.left;
+            u32 cy = new_window_pos.bottom - new_window_pos.top;
 
-    app->clear();
-    editor->render();
-    app->present();
+            // @NOTE SWP_NOZORDER seems like the right flag but I will see how it behaves.
+            SetWindowPos(hwnd, 0, new_window_pos.left, new_window_pos.top, cx, cy, SWP_NOZORDER);
+         } break;
+
+        case WM_CHAR: {
+            if (wParam != VK_BACK) {
+                insert_at_gap(data->gb, (char16)wParam);
+            }
+
+            InvalidateRect(hwnd, 0, TRUE);
+        } break;
+
+        case WM_KEYDOWN: {
+            if (wParam == VK_BACK) {
+                remove_at_gap(data->gb);
+            } else if (wParam == VK_LEFT) {
+                move_gap_left(data->gb);
+            } else if (wParam == VK_RIGHT) {
+                move_gap_right(data->gb);
+            }
+
+            return 0;
+        } break;
+
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC dc = BeginPaint(hwnd, &ps);
+           
+            RECT client_rect;
+            GetClientRect(hwnd, &client_rect);
+            
+            SetBkColor(dc, TRANSPARENT);
+            SetTextColor(dc, 0x00FFFFFF);
+            auto old_obj = SelectObject(dc, data->font);
+
+            RECT r = {};
+            DrawText(dc, (LPCWSTR)data->gb->data, data->gb->start, &r, DT_CALCRECT | DT_LEFT | DT_EXPANDTABS);
+            DrawText(dc, (LPCWSTR)data->gb->data, data->gb->start, &r, DT_LEFT | DT_EXPANDTABS);
+            r.left = r.right;
+            DrawText(dc, (LPCWSTR)data->gb->data + data->gb->end, data->gb->size - data->gb->end, &r, DT_CALCRECT | DT_LEFT | DT_EXPANDTABS);
+            DrawText(dc, (LPCWSTR)data->gb->data + data->gb->end, data->gb->size - data->gb->end, &r, DT_LEFT | DT_EXPANDTABS);
+            
+            SelectObject(dc, old_obj);
+            
+            EndPaint(hwnd, &ps);
+        } break;
+
+        default:
+            result = DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+
+    return result;
 }
 
-void on_font_load(Console *app)
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    Editor *editor = (Editor*)app->user_data;
-    editor->boundary.w = app->cols - 1;
-    editor->boundary.h = app->rows - 1;
-    editor->cursor_line.h = app->char_h;
+    if (msg == WM_CREATE) {
+		CREATESTRUCT* create_struct = reinterpret_cast<CREATESTRUCT*>(lParam);
+		EditorData* data = reinterpret_cast<EditorData*>(create_struct->lpCreateParams);
+		SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)data);
+
+         // em to pt.
+        u32 height = MulDiv(24, GetDeviceCaps(GetDC(hwnd), LOGPIXELSY), 72);
+        data->font = CreateFont(height, 0, 0, 0, 
+        FW_DONTCARE, FALSE, FALSE, FALSE,
+         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+          CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+           DEFAULT_PITCH | FF_DONTCARE, NULL
+           );
+
+        data->gb = gap_buffer_init();
+	}
+
+	LONG_PTR ptr = GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	EditorData* data = reinterpret_cast<EditorData*>(ptr);
+	if (data) {
+		return handle_message(data, hwnd, msg, wParam, lParam);
+	}
+
+	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-int main(int argc, char *argv[])
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
 {
-    Console *app = new Console("Flash", 1000, 600);
-    Editor *editor = new Editor(app, app->char_h, 0, 0, app->cols - 1, app->rows - 1);
+    WNDCLASSEX wnd_class = {};
+    wnd_class.cbSize = sizeof(wnd_class);
+    wnd_class.hbrBackground = CreateSolidBrush(BLACK_BRUSH + 1);
+    wnd_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wnd_class.hInstance = instance;
+    wnd_class.lpszClassName = L"Editor";
+    wnd_class.lpfnWndProc = WndProc;
+    wnd_class.style = CS_VREDRAW | CS_HREDRAW;
 
-    app->window_resize_callback = &on_window_resize;
-    app->font_load_callback = &on_font_load;
-    app->user_data = editor;
+    RegisterClassEx(&wnd_class);
 
-    bool invoke = false;
-    char invoke_file[128];
+    EditorData editor_data;
+    
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    
+    HWND hwnd = CreateWindowEx(
+        0,
+        L"Editor",
+        L"Editor",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        0,
+        0,
+        instance,
+        &editor_data
+    );
 
-    if (argc > 1)
-        editor->load_file(argv[1]);
+    ShowWindow(hwnd, show_cmd);
 
-    app->clear();
-    editor->render();
-    app->present();
-
-    while (app->window_open)
-    {
-        app->poll_events();
-
-        if (app->input)
-        {
-            editor->key_character();
-        }
-        else if (app->is_key_pressed(SDLK_RETURN))
-        {
-            editor->key_return();
-        }
-        else if (app->is_key_pressed(SDLK_BACKSPACE))
-        {
-            editor->key_backspace();
-        }
-        else if (app->is_key_pressed(SDLK_DELETE))
-        {
-            editor->key_delete();
-        }
-        else if (app->is_key_pressed(SDLK_TAB))
-        {
-            editor->key_tab();
-        }
-        else if (app->is_key_pressed(SDLK_UP))
-        {
-            editor->key_up();
-        }
-        else if (app->is_key_pressed(SDLK_DOWN))
-        {
-            editor->key_down();
-        }
-        else if (app->is_key_pressed(SDLK_LEFT))
-        {
-            if (app->ctrl)
-                editor->key_ctrl_left();
-            else
-                editor->key_left();
-        }
-        else if (app->is_key_pressed(SDLK_RIGHT))
-        {
-            if (app->ctrl)
-                editor->key_ctrl_right();
-            else
-                editor->key_right();
-        }
-        else if (app->is_key_pressed(SDLK_PAGEUP))
-        {
-            editor->key_page_up();
-        }
-        else if (app->is_key_pressed(SDLK_PAGEDOWN))
-        {
-            editor->key_page_down();
-        }
-        else if (app->is_key_pressed(SDLK_ESCAPE))
-        {
-            editor->key_escape();
-        }   
-
-        if (app->is_any_key_pressed())
-        {
-            app->clear();
-            editor->render();
-            app->clear();
-            editor->render();
-            app->present();
-        }
-
-        SDL_Delay(16);
+    MSG msg = {};
+    while (GetMessage(&msg, 0, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
     }
     
-    editor->close_file();
-
-    invoke = app->invoke_self;
-    strcpy(invoke_file, app->cur_file_name);
-
-    delete editor;
-    delete app;
-
-    if (invoke)
-    {
-        char cmd[128] = "start "" build -r ";
-        strcat(cmd, invoke_file);
-        system(cmd);
-    }
-
     return 0;
 }
