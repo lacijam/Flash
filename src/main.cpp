@@ -1,19 +1,18 @@
-#include "gap_buffer.h"
+#include "editor.h"
 
 #include <windows.h>
 #include <assert.h>
 
-struct EditorData {
+struct WindowData {
     HFONT font;
-    GapBuffer *gb;
 };
 
-LRESULT CALLBACK handle_message(EditorData *data, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     LRESULT result = 0;
     switch (msg) {
         case WM_DESTROY: {
-            gap_buffer_destroy(data->gb);
+            editor_cleanup();
             PostQuitMessage(0);
             return 0;
         } break;
@@ -28,22 +27,11 @@ LRESULT CALLBACK handle_message(EditorData *data, HWND hwnd, UINT msg, WPARAM wP
          } break;
 
         case WM_CHAR: {
-            if (wParam != VK_BACK) {
-                insert_at_gap(data->gb, (char16)wParam);
-            }
-
+            editor_handle_keys(static_cast<u32>(wParam));
             InvalidateRect(hwnd, 0, TRUE);
         } break;
 
         case WM_KEYDOWN: {
-            if (wParam == VK_BACK) {
-                remove_at_gap(data->gb);
-            } else if (wParam == VK_LEFT) {
-                move_gap_left(data->gb);
-            } else if (wParam == VK_RIGHT) {
-                move_gap_right(data->gb);
-            }
-
             return 0;
         } break;
 
@@ -58,12 +46,7 @@ LRESULT CALLBACK handle_message(EditorData *data, HWND hwnd, UINT msg, WPARAM wP
             SetTextColor(dc, 0x00FFFFFF);
             auto old_obj = SelectObject(dc, data->font);
 
-            RECT r = {};
-            DrawText(dc, (LPCWSTR)data->gb->data, data->gb->start, &r, DT_CALCRECT | DT_LEFT | DT_EXPANDTABS);
-            DrawText(dc, (LPCWSTR)data->gb->data, data->gb->start, &r, DT_LEFT | DT_EXPANDTABS);
-            r.left = r.right;
-            DrawText(dc, (LPCWSTR)data->gb->data + data->gb->end, data->gb->size - data->gb->end, &r, DT_CALCRECT | DT_LEFT | DT_EXPANDTABS);
-            DrawText(dc, (LPCWSTR)data->gb->data + data->gb->end, data->gb->size - data->gb->end, &r, DT_LEFT | DT_EXPANDTABS);
+            editor_win32_draw(dc);
             
             SelectObject(dc, old_obj);
             
@@ -81,7 +64,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (msg == WM_CREATE) {
 		CREATESTRUCT* create_struct = reinterpret_cast<CREATESTRUCT*>(lParam);
-		EditorData* data = reinterpret_cast<EditorData*>(create_struct->lpCreateParams);
+		WindowData* data = reinterpret_cast<WindowData*>(create_struct->lpCreateParams);
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)data);
 
          // em to pt.
@@ -93,11 +76,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
            DEFAULT_PITCH | FF_DONTCARE, NULL
            );
 
-        data->gb = gap_buffer_init();
+        editor_init();
 	}
 
 	LONG_PTR ptr = GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	EditorData* data = reinterpret_cast<EditorData*>(ptr);
+	WindowData* data = reinterpret_cast<WindowData*>(ptr);
 	if (data) {
 		return handle_message(data, hwnd, msg, wParam, lParam);
 	}
@@ -118,7 +101,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
 
     RegisterClassEx(&wnd_class);
 
-    EditorData editor_data;
+    WindowData window_data;
     
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     
@@ -134,7 +117,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, 
         0,
         0,
         instance,
-        &editor_data
+        &window_data
     );
 
     ShowWindow(hwnd, show_cmd);

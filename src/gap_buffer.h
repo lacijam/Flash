@@ -12,13 +12,12 @@ struct GapBuffer {
     u64 end;
 };
 
-GapBuffer *gap_buffer_init();
-void gap_buffer_destroy(GapBuffer *gb);
-void resize_gap(GapBuffer *gb, u64 new_size);
-void insert_at_gap(GapBuffer *gb, char16 c);
-void insert_at_gap(GapBuffer *gb, char16 *arr);
-void remove_from_back(GapBuffer *gb);
-void remove_at_gap(GapBuffer *gb);
-void move_gap_left(GapBuffer *gb);
-void move_gap_right(GapBuffer *gb);
-void get_text(GapBuffer *gb, char16 *buf, u64 buf_len);
+GapBuffer *gap_init();
+void gap_destroy(GapBuffer *gb);
+void gap_resize(GapBuffer *gb, u64 new_size);
+void gap_insert(GapBuffer *gb, char16 c);
+void gap_insert(GapBuffer *gb, char16 *arr);
+void gap_remove_from_back(GapBuffer *gb);
+void gap_remove_from_front(GapBuffer *gb);
+void gap_move_left(GapBuffer *gb);
+void gap_move_right(GapBuffer *gb);
