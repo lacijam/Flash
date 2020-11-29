@@ -5,16 +5,29 @@
 #include <stdio.h>
 #endif
 
-static GapBuffer *gb;
+static GapBuffer<GapBuffer<char16>*> *buffer;
+static GapBuffer<char16> *cur_line;
 
 void editor_init()
 {
-    gb = gap_init();
+   buffer = GapBufferAlloc::create<GapBuffer<char16>*>();
+
+   GapBuffer<char16> *new_line = GapBufferAlloc::create<char16>();
+   buffer->insert(new_line);
+   cur_line = new_line;
 }
 
 void editor_cleanup()
 {
-    gap_destroy(gb);
+    assert(buffer);
+    for (u64 line = 0; line < buffer->size; line++) {
+        if (line < buffer->start && line >= buffer->end) {
+            assert(buffer->data[line]);
+            GapBufferAlloc::destroy(buffer->data[line]);
+        }
+    }
+
+    GapBufferAlloc::destroy(buffer);
 }
 
 void editor_handle_char(u32 virtual_key)
@@ -24,9 +37,7 @@ void editor_handle_char(u32 virtual_key)
 
         } break;
 
-        case VK_RETURN: {
-
-        } break;
+        case VK_RETURN: break;
 
         case VK_ESCAPE: {
 
@@ -37,7 +48,7 @@ void editor_handle_char(u32 virtual_key)
         } break;
 
         default:
-            gap_insert(gb, static_cast<char16>(virtual_key));
+            cur_line->insert(static_cast<char16>(virtual_key));
     }
 }
 
@@ -45,57 +56,88 @@ void editor_handle_keydown(u32 virtual_key)
 {
     switch (virtual_key) {
         case VK_BACK: {
-            gap_remove_from_front(gb);
+            cur_line->remove_from_front();
         } break;
 
         case VK_DELETE: {
-            gap_remove_from_back(gb);
+            cur_line->remove_from_back();
+        } break;
+
+        case VK_RETURN: {
+            GapBuffer<char16> *new_line = GapBufferAlloc::create<char16>();
+           
+            while (cur_line->end < cur_line->size) {
+                new_line->insert(cur_line->data[cur_line->end]);
+                cur_line->remove_from_back();
+            }
+
+            while (new_line->start > 0) {
+                new_line->move_left();
+            }
+
+            buffer->insert(new_line);
+            cur_line = new_line;
         } break;
 
         case VK_LEFT: {
-            gap_move_left(gb);
+            cur_line->move_left();
         } break;
 
         case VK_RIGHT: {
-            gap_move_right(gb);
+            cur_line->move_right();
         } break;
     }
 }
 
-void editor_win32_draw(HDC dc, RECT *client)
+void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
 {
-    // Speed? maybe do this only when the font changes!
-    TEXTMETRIC tm;
-    GetTextMetrics(dc, &tm);
+    // Windows...
+    LONG win32_char_width = static_cast<LONG>(char_width);
+    LONG win32_char_height = static_cast<LONG>(char_height);
 
-    RECT r = *client,
-         cursor = { 0, 0, tm.tmAveCharWidth, tm.tmHeight };
+    RECT cursor = { 0, 0, win32_char_width, win32_char_height };
 
-    if (gb->start > 0) {
-        DRAWTEXTPARAMS dtp = {};
-        dtp.cbSize = sizeof(dtp);
-        dtp.iTabLength = 4;
-        DrawTextEx(dc, (LPWSTR)gb->data, gb->start, &r, DT_CALCRECT | DT_LEFT | DT_EXPANDTABS, &dtp);
-        
-        s32 overflow_pixels = r.right - client->right;
-        u32 overflow_char_count = 0;
-        if (overflow_pixels > 0) {
-            overflow_char_count = overflow_pixels / tm.tmAveCharWidth + 1; // Round up to next char
-            printf("%d %d %d %d\n", r.right, client->right, overflow_pixels, overflow_char_count);
+    for (u64 line = 0; line < buffer->size; line++) {
+        if (line < buffer->start || line >= buffer->end) {
+            GapBuffer<char16>* p_line = buffer->data[line];
+
+            LONG p_line_y =  line * char_height;
+
+            DRAWTEXTPARAMS dtp = {};
+            dtp.cbSize = sizeof(dtp);
+            dtp.iTabLength = 4;
+
+            // Calculate line screen pos with width returned from DrawText
+            // and tmHeight from font.
+            RECT text_rect = {}; 
+            text_rect.top += p_line_y;
+            text_rect.bottom += p_line_y;
+
+            if (p_line->start > 0) {
+                // Speed? Don't know how this will scale performance-wise
+                // with very large buffers.
+                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+
+                // Draw the next section at the end of this one.
+                text_rect.left = text_rect.right;
+            }
+
+            if (p_line == cur_line) {
+                cursor.left   += text_rect.left;
+                cursor.top    += text_rect.top;
+                cursor.right  += text_rect.right;
+                cursor.bottom += text_rect.top;
+            }
+
+            if (cur_line->end < cur_line->size - 1) {
+                // ???????? Make a function to get the pointer for the 2nd section instead of workign it out here!!!!!!!!!!!
+                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+            }
         }
-
-        DrawTextEx(dc, (LPWSTR)gb->data, gb->start - overflow_char_count, &r, DT_LEFT | DT_EXPANDTABS, &dtp);
-
-        cursor = { r.right, r.top, r.right + tm.tmAveCharWidth, r.bottom };
-
-        // Draw the next section at the end of this one.
-        r.left = r.right;
     }
 
-    if (gb->end < gb->size) {
-        DrawText(dc, (LPCWSTR)gb->data + gb->end, gb->size - gb->end, &r, DT_CALCRECT | DT_LEFT | DT_EXPANDTABS);
-        DrawText(dc, (LPCWSTR)gb->data + gb->end, gb->size - gb->end, &r, DT_LEFT | DT_EXPANDTABS | DT_WORDBREAK);
-    }
-
+    printf("%d %d %d %d", cursor.left, cursor.top, cursor.right, cursor.bottom);
     FillRect(dc, &cursor, (HBRUSH)(WHITE_BRUSH + 1));
 }

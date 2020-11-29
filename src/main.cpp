@@ -34,7 +34,7 @@ LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wP
 
         case WM_CHAR: {
             editor_handle_char(static_cast<u32>(wParam));
-            InvalidateRect(hwnd, 0, TRUE);
+            //InvalidateRect(hwnd, 0, TRUE);
         } break;
 
         case WM_KEYDOWN: {
@@ -54,7 +54,12 @@ LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wP
             SetTextColor(dc, 0x00FFFFFF);
             auto old_obj = SelectObject(dc, data->font);
 
-            editor_win32_draw(dc, &client_rect);
+            // Speed? Maybe this is ok here, will catch font changes
+            // and pass to editor.
+            TEXTMETRIC tm;
+            GetTextMetrics(dc, &tm);
+
+            editor_win32_draw(dc, &client_rect, tm.tmAveCharWidth, tm.tmHeight);
             
             SelectObject(dc, old_obj);
             

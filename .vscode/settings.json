@@ -7,6 +7,7 @@
         "list": "cpp",
         "type_traits": "cpp",
         "xhash": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "xiosbase": "cpp"
     }
 }
