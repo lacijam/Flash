@@ -73,6 +73,7 @@ void gap_remove_from_front(GapBuffer *gb)
     }
 }
 
+// Speed? This can be optimized so we only move memory before insertion/deletion
 void gap_move_left(GapBuffer *gb)
 {
     if (gb->start > 0)

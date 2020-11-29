@@ -3,6 +3,12 @@
 #include <windows.h>
 #include <assert.h>
 
+// For console printing.
+#ifdef _DEBUG
+#include <stdio.h>
+#include <fcntl.h>
+#endif
+
 struct WindowData {
     HFONT font;
 };
@@ -48,7 +54,7 @@ LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wP
             SetTextColor(dc, 0x00FFFFFF);
             auto old_obj = SelectObject(dc, data->font);
 
-            editor_win32_draw(dc);
+            editor_win32_draw(dc, &client_rect);
             
             SelectObject(dc, old_obj);
             
@@ -92,6 +98,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int show_cmd)
 {
+    #ifdef _DEBUG
+AllocConsole();
+	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+	freopen_s((FILE**)stdin, "CONIN$", "r", stdin);
+	freopen_s((FILE**)stderr, "CONOUT$", "w", stderr);
+#endif
+
     WNDCLASSEX wnd_class = {};
     wnd_class.cbSize = sizeof(wnd_class);
     wnd_class.hbrBackground = CreateSolidBrush(BLACK_BRUSH + 1);
