@@ -27,11 +27,13 @@ LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wP
          } break;
 
         case WM_CHAR: {
-            editor_handle_keys(static_cast<u32>(wParam));
+            editor_handle_char(static_cast<u32>(wParam));
             InvalidateRect(hwnd, 0, TRUE);
         } break;
 
         case WM_KEYDOWN: {
+            editor_handle_keydown(static_cast<u32>(wParam));
+            InvalidateRect(hwnd, 0, TRUE);
             return 0;
         } break;
 
