@@ -56,7 +56,28 @@ void editor_handle_keydown(u32 virtual_key)
 {
     switch (virtual_key) {
         case VK_BACK: {
-            cur_line->remove_from_front();
+            if (cur_line->start == 0 && buffer->start > 1) {
+                // @Note: cur_line is at data[buffer->start - 1].
+                GapBuffer<char16> *prev_line = buffer->data[buffer->start - 2];
+                
+                // @Note: Move the cursor to the end of the line we are copying to
+                // We need to move it back to the original length
+                u64 delta = 0;
+                while (prev_line->end != prev_line->size != 0) {
+                    prev_line->move_right();
+                    delta++;
+                }
+
+                while (cur_line->end != cur_line->size) {
+                    prev_line->insert(cur_line->data[cur_line->end]);
+                    cur_line->remove_from_back();
+                }
+
+                buffer->remove_from_front();
+                cur_line = prev_line;
+            } else {
+                cur_line->remove_from_front();
+            }
         } break;
 
         case VK_DELETE: {
@@ -120,19 +141,19 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             dtp.cbSize = sizeof(dtp);
             dtp.iTabLength = 4;
 
-            // Calculate line screen pos with width returned from DrawText
+            // @Note: Calculate line screen pos with width returned from DrawText
             // and tmHeight from font.
             RECT text_rect = {}; 
             text_rect.top += p_line_y;
             text_rect.bottom += p_line_y;
 
             if (p_line->start > 0) {
-                // Speed? Don't know how this will scale performance-wise
+                // @Speed? Don't know how this will scale performance-wise
                 // with very large buffers.
                 DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
                 DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
 
-                // Draw the next section at the end of this one.
+                // @Note/@Hack?: Draw the next section at the end of this one.
                 text_rect.left = text_rect.right;
             }
 
@@ -144,7 +165,7 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             }
 
             if (p_line->end < p_line->size) {
-                // ???????? Make a function to get the pointer for the 2nd section instead of workign it out here!!!!!!!!!!!
+                // @Speed/@Code/@Dangerous?: Make a function to get the pointer for the 2nd section instead of workign it out here!!!!!!!!!!!
                 DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
                 DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
             }

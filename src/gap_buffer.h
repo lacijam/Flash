@@ -5,9 +5,9 @@
 
 #include "types.h"
 
-// TODO Move gap to any pos in buffer.
+// @TODO: Move the gap to any position in buffer?
 
-// We are only using this struct for char16 and GapBuffer so hopefully
+// @Note: We are only using this struct for char16 and GapBuffer so hopefully
 // it doesn't destroy the compile time too much!
 template <typename T>
 struct GapBuffer {
@@ -25,6 +25,7 @@ struct GapBuffer {
     void move_right();
 };
 
+// @Note: This feels weird....
 namespace GapBufferAlloc {
     template <typename T>
     GapBuffer<T> *create()

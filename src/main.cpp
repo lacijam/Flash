@@ -28,13 +28,12 @@ LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wP
             u32 cx = new_window_pos.right - new_window_pos.left;
             u32 cy = new_window_pos.bottom - new_window_pos.top;
 
-            // @NOTE SWP_NOZORDER seems like the right flag but I will see how it behaves.
+            // @Note: SWP_NOZORDER seems like the right flag but I will see how it behaves.
             SetWindowPos(hwnd, 0, new_window_pos.left, new_window_pos.top, cx, cy, SWP_NOZORDER);
          } break;
 
         case WM_CHAR: {
             editor_handle_char(static_cast<u32>(wParam));
-            //InvalidateRect(hwnd, 0, TRUE);
         } break;
 
         case WM_KEYDOWN: {
@@ -43,25 +42,46 @@ LRESULT CALLBACK handle_message(WindowData *data, HWND hwnd, UINT msg, WPARAM wP
             return 0;
         } break;
 
+        case WM_ERASEBKGND: {
+            return 1;
+        } break;
+
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC dc = BeginPaint(hwnd, &ps);
-           
+            
             RECT client_rect;
             GetClientRect(hwnd, &client_rect);
-            
-            SetBkColor(dc, TRANSPARENT);
-            SetTextColor(dc, 0x00FFFFFF);
-            auto old_obj = SelectObject(dc, data->font);
 
-            // Speed? Maybe this is ok here, will catch font changes
+            // @Speed?: Lets not create this every tiem we redraw, there's a nice
+            // struct that can be accessed from here!!!!!!!!!!!!!!!!
+            HDC hdc_mem = CreateCompatibleDC(dc);
+            u32 cx = client_rect.right - client_rect.left;
+            u32 cy = client_rect.bottom - client_rect.top;
+            auto bmp = CreateCompatibleBitmap(dc, cx, cy);
+
+            // @Note: Probably not needed but just in case.
+            auto old_bmp = SelectObject(hdc_mem, bmp);
+            
+            SetBkColor(hdc_mem, TRANSPARENT);
+            SetTextColor(hdc_mem, 0x00FFFFFF);
+            auto old_font = SelectObject(hdc_mem, data->font);
+
+            // @Speed?: Maybe this is ok here, will catch font changes
             // and pass to editor.
             TEXTMETRIC tm;
-            GetTextMetrics(dc, &tm);
+            GetTextMetrics(hdc_mem, &tm);
 
-            editor_win32_draw(dc, &client_rect, tm.tmAveCharWidth, tm.tmHeight);
+            editor_win32_draw(hdc_mem, &client_rect, tm.tmAveCharWidth, tm.tmHeight);
             
-            SelectObject(dc, old_obj);
+            SelectObject(hdc_mem, old_font);
+
+            BitBlt(dc, 0, 0, cx, cy, hdc_mem, 0, 0, SRCCOPY);
+
+            SelectObject(hdc_mem, old_bmp);
+
+            DeleteObject(bmp);
+            DeleteDC(hdc_mem);
             
             EndPaint(hwnd, &ps);
         } break;
@@ -80,7 +100,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		WindowData* data = reinterpret_cast<WindowData*>(create_struct->lpCreateParams);
 		SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)data);
 
-         // em to pt.
+         // @Note: em to pt.
         u32 height = MulDiv(24, GetDeviceCaps(GetDC(hwnd), LOGPIXELSY), 72);
         data->font = CreateFont(height, 0, 0, 0, 
         FW_DONTCARE, FALSE, FALSE, FALSE,
