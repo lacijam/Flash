@@ -25,32 +25,28 @@ struct GapBuffer {
     void move_right();
 };
 
-// @Note: This feels weird....
-namespace GapBufferAlloc {
-    template <typename T>
-    GapBuffer<T> *create()
-    {
-        GapBuffer<T> *gb = (GapBuffer<T>*)HeapAlloc(GetProcessHeap(), 0, sizeof GapBuffer<T>);
-        gb->grow_by = 10;
-        gb->size = gb->grow_by;
-        gb->data = (T*)HeapAlloc(GetProcessHeap(), 0, gb->size * sizeof T);
-        ZeroMemory(gb->data, gb->size * sizeof T);
+template <typename T>
+GapBuffer<T> *gap_buffer_create()
+{
+    GapBuffer<T> *gb = (GapBuffer<T>*)HeapAlloc(GetProcessHeap(), 0, sizeof GapBuffer<T>);
+    gb->grow_by = 10;
+    gb->size = gb->grow_by;
+    gb->data = (T*)HeapAlloc(GetProcessHeap(), 0, gb->size * sizeof T);
+    ZeroMemory(gb->data, gb->size * sizeof T);
 
-        gb->start = 0;
-        gb->end = gb->size;
+    gb->start = 0;
+    gb->end = gb->size;
 
-        return gb;
-    }
+    return gb;
+}
 
-    template <typename T>
-    void destroy(GapBuffer<T> *gb)
-    {
-        assert(gb && gb->data);
-        HeapFree(GetProcessHeap(), 0, gb->data);
-        HeapFree(GetProcessHeap(), 0, gb);
-    }
-};
-
+template <typename T>
+void gap_buffer_destroy(GapBuffer<T> *gb)
+{
+    assert(gb && gb->data);
+    HeapFree(GetProcessHeap(), 0, gb->data);
+    HeapFree(GetProcessHeap(), 0, gb);
+}
 
 template <typename T>
 void GapBuffer<T>::resize(u64 new_size)

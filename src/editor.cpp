@@ -10,9 +10,9 @@ static GapBuffer<char16> *cur_line;
 
 void editor_init()
 {
-   buffer = GapBufferAlloc::create<GapBuffer<char16>*>();
+   buffer = gap_buffer_create<GapBuffer<char16>*>();
 
-   GapBuffer<char16> *new_line = GapBufferAlloc::create<char16>();
+   GapBuffer<char16> *new_line = gap_buffer_create<char16>();
    buffer->insert(new_line);
    cur_line = new_line;
 }
@@ -23,11 +23,11 @@ void editor_cleanup()
     for (u64 line = 0; line < buffer->size; line++) {
         if (line < buffer->start && line >= buffer->end) {
             assert(buffer->data[line]);
-            GapBufferAlloc::destroy(buffer->data[line]);
+            gap_buffer_destroy(buffer->data[line]);
         }
     }
 
-    GapBufferAlloc::destroy(buffer);
+    gap_buffer_destroy(buffer);
 }
 
 void editor_handle_char(u32 virtual_key)
@@ -80,20 +80,23 @@ void editor_handle_keydown(u32 virtual_key)
             }
         } break;
 
+        // @TODO: If at start of line copy next line onto current line and remove next line.
         case VK_DELETE: {
             cur_line->remove_from_back();
         } break;
 
         case VK_RETURN: {
-            GapBuffer<char16> *new_line = GapBufferAlloc::create<char16>();
+            GapBuffer<char16> *new_line = gap_buffer_create<char16>();
            
-            while (cur_line->end < cur_line->size) {
-                new_line->insert(cur_line->data[cur_line->end]);
-                cur_line->remove_from_back();
-            }
+            if (cur_line->end != cur_line->size) {
+                while (cur_line->end < cur_line->size) {
+                    new_line->insert(cur_line->data[cur_line->end]);
+                    cur_line->remove_from_back();
+                }
 
-            while (new_line->start > 0) {
-                new_line->move_left();
+                while (new_line->start > 0) {
+                    new_line->move_left();
+                }
             }
 
             buffer->insert(new_line);
@@ -109,6 +112,7 @@ void editor_handle_keydown(u32 virtual_key)
         } break;
 
         case VK_UP: {
+            // @Note: > 1 so we dont put the gap before the first line.
             if (buffer->start > 1) {
                 buffer->move_left();
                 cur_line = buffer->data[buffer->start - 1];
@@ -124,11 +128,7 @@ void editor_handle_keydown(u32 virtual_key)
 
 void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
 {
-    // Windows...
-    LONG win32_char_width = static_cast<LONG>(char_width);
-    LONG win32_char_height = static_cast<LONG>(char_height);
-
-    RECT cursor = { 0, 0, win32_char_width, win32_char_height };
+    RECT cursor = { 0, 0, static_cast<LONG>(char_width), static_cast<LONG>(char_height) };
 
     u64 line = 0;
     for (u64 buffer_index = 0; buffer_index < buffer->size; buffer_index++) {
