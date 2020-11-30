@@ -60,18 +60,25 @@ void editor_handle_keydown(u32 virtual_key)
                 // @Note: cur_line is at data[buffer->start - 1].
                 GapBuffer<char16> *prev_line = buffer->data[buffer->start - 2];
                 
-                // @Note: Move the cursor to the end of the line we are copying to
-                // We need to move it back to the original length
-                u64 delta = 0;
-                while (prev_line->end != prev_line->size != 0) {
+                while (prev_line->end != prev_line->size) {
                     prev_line->move_right();
-                    delta++;
                 }
 
-                while (cur_line->end != cur_line->size) {
-                    prev_line->insert(cur_line->data[cur_line->end]);
-                    cur_line->remove_from_back();
+                // If there's anything on the current line we need to copy
+                // it to the previous line.
+                if (cur_line->end < cur_line->size) {
+                    u64 delta = 0;
+                    while (cur_line->end < cur_line->size) {
+                        prev_line->insert(cur_line->data[cur_line->end]);
+                        cur_line->remove_from_back();
+                        delta++;
+                    }
+
+                    while (delta-- > 0) {
+                        prev_line->move_left();
+                    }
                 }
+
 
                 buffer->remove_from_front();
                 cur_line = prev_line;
@@ -82,13 +89,41 @@ void editor_handle_keydown(u32 virtual_key)
 
         // @TODO: If at start of line copy next line onto current line and remove next line.
         case VK_DELETE: {
-            cur_line->remove_from_back();
+            if (cur_line->end == cur_line->size && buffer->end != buffer->size) {
+                GapBuffer<char16> *next_line = buffer->data[buffer->end];
+           
+                // If there's anything on the next line we need to copy
+                // it to the current line.
+                // @Note: Unlike WM_BACK we don't know the position of the cursor
+                // on the line we might be copying from but we can calculate it
+                // by calculating end - start
+                if (next_line->end - next_line->start < next_line->size) {
+                    while (next_line->start > 0) {
+                        next_line->move_left();
+                    }
+
+                    u64 delta = 0;
+                    while (next_line->end < next_line->size) {
+                        cur_line->insert(next_line->data[next_line->end]);
+                        next_line->remove_from_back();
+                        delta++;
+                    }
+
+                    while (delta-- > 0) {
+                        cur_line->move_left();
+                    }
+                }
+
+                buffer->remove_from_back();
+            } else {
+                cur_line->remove_from_back();
+            }
         } break;
 
         case VK_RETURN: {
             GapBuffer<char16> *new_line = gap_buffer_create<char16>();
            
-            if (cur_line->end != cur_line->size) {
+            if (cur_line->end < cur_line->size) {
                 while (cur_line->end < cur_line->size) {
                     new_line->insert(cur_line->data[cur_line->end]);
                     cur_line->remove_from_back();
@@ -165,7 +200,7 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             }
 
             if (p_line->end < p_line->size) {
-                // @Speed/@Code/@Dangerous?: Make a function to get the pointer for the 2nd section instead of workign it out here!!!!!!!!!!!
+                // @Speed/@Code/@Dangerous?: Make a function to get the pointer for the 2nd section instead of workign it out here???
                 DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
                 DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
             }
