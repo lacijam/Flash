@@ -1,5 +1,6 @@
 @echo off
 
+set VC_VERSION=2019
 set APP_NAME=Flash
 set SRC_PATH=..\src
 set OUTPUT_PATH=..
@@ -17,7 +18,7 @@ if "%1" == "d" (
 
     pushd build
     if not defined DevEnvDir (
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+        call "C:\Program Files (x86)\Microsoft Visual Studio\%VC_VERSION%\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
     )
 
     cl %SRC_PATH%\*.cpp /ZI /Od /W4 /MDd /EHsc /D "_DEBUG" /D "_UNICODE" /D "UNICODE" /Fe%APP_NAME% kernel32.lib user32.lib gdi32.lib opengl32.lib /link /LIBPATH:".." /DEBUG:FASTLINK /INCREMENTAL /SUBSYSTEM:WINDOWS
@@ -45,7 +46,7 @@ if "%1" == "d" (
 
         pushd build
         if not defined DevEnvDir (
-            call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+            call "C:\Program Files (x86)\Microsoft Visual Studio\%VC_VERSION%\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
         )
 
         cl %SRC_PATH%\*.cpp /Zi /O2 /Oi /GL /MD /W3 /EHsc /D "_NDEBUG" /D "_UNICODE" /D "UNICODE" /Fe%APP_NAME% kernel32.lib user32.lib gdi32.lib opengl32.lib /link /LIBPATH:".." /DEBUG:FULL /INCREMENTAL:NO /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS /ENTRY:WinMainCRTStartup
