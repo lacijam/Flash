@@ -86,6 +86,18 @@ void editor_handle_keydown(u32 virtual_key)
         case VK_RIGHT: {
             cur_line->move_right();
         } break;
+
+        case VK_UP: {
+            if (buffer->start > 1) {
+                buffer->move_left();
+                cur_line = buffer->data[buffer->start - 1];
+            }
+        } break;
+
+        case VK_DOWN: {
+            buffer->move_right();
+            cur_line = buffer->data[buffer->start - 1];
+        } break;
     }
 }
 
@@ -97,9 +109,10 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
 
     RECT cursor = { 0, 0, win32_char_width, win32_char_height };
 
-    for (u64 line = 0; line < buffer->size; line++) {
-        if (line < buffer->start || line >= buffer->end) {
-            GapBuffer<char16>* p_line = buffer->data[line];
+    u64 line = 0;
+    for (u64 buffer_index = 0; buffer_index < buffer->size; buffer_index++) {
+        if (buffer_index < buffer->start || buffer_index >= buffer->end) {
+            GapBuffer<char16>* p_line = buffer->data[buffer_index];
 
             LONG p_line_y =  line * char_height;
 
@@ -130,14 +143,15 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
                 cursor.bottom += text_rect.top;
             }
 
-            if (cur_line->end < cur_line->size - 1) {
+            if (p_line->end < p_line->size) {
                 // ???????? Make a function to get the pointer for the 2nd section instead of workign it out here!!!!!!!!!!!
                 DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
                 DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
             }
+
+            line++;
         }
     }
 
-    printf("%d %d %d %d", cursor.left, cursor.top, cursor.right, cursor.bottom);
     FillRect(dc, &cursor, (HBRUSH)(WHITE_BRUSH + 1));
 }
