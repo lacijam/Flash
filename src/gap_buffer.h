@@ -23,6 +23,7 @@ struct GapBuffer {
     void remove_from_front();
     void move_left();
     void move_right();
+    void move_to(u64 pos);
 };
 
 template <typename T>
@@ -109,5 +110,20 @@ void GapBuffer<T>::move_right()
     if (end < size)
     {
         data[start++] = data[end++];
+    }
+}
+
+template <typename T>
+void GapBuffer<T>::move_to(u64 pos)
+{
+    assert(pos >= 0 && pos < size);
+    if (pos < start) {
+        while (pos != start && start > 0) {
+            data[--end] = data[--start];
+        }
+    } else {
+        while (pos != start && end < size) {
+            data[start++] = data[end++];
+        }
     }
 }

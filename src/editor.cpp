@@ -28,6 +28,17 @@ static void merge_lines(GapBuffer<char16>* dst, GapBuffer<char16>* src) {
     }
 }
 
+static void calculate_new_cursor_x(GapBuffer<char16> *dst)
+{
+    GapBuffer<char16> *dst = buffer->data[buffer->start - 2];
+
+    if (dst->size - (dst->end - dst->start) > cur_line->start) {
+        dst->move_to(cur_line->start);
+    } else {
+        dst->move_to(dst->size);
+    }
+}
+
 void editor_init()
 {
    buffer = gap_buffer_create<GapBuffer<char16>*>();
@@ -52,14 +63,18 @@ void editor_cleanup()
 
 void editor_handle_char(u32 virtual_key)
 {
-    switch (virtual_key) {
-        case VK_BACK: break;
-        case VK_RETURN: break;
-        case VK_ESCAPE: break;
-        
-        case VK_TAB:
-        default: {
-            if (GetKeyState(VK_CONTROL) >= 0) {
+    if (GetKeyState(VK_CONTROL) >= 0) {
+        switch (virtual_key) {
+            case VK_BACK: break;
+            case VK_RETURN: break;
+            case VK_ESCAPE: break;
+            
+            case VK_TAB: {
+                for (u8 i = 0; i < 4; ++i) {
+                    cur_line->insert(static_cast<char16>(' '));
+                }
+            } break;
+            default: {
                 cur_line->insert(static_cast<char16>(virtual_key));
             }
         }
@@ -69,6 +84,7 @@ void editor_handle_char(u32 virtual_key)
 void editor_handle_keydown(u32 virtual_key)
 {
     switch (virtual_key) {
+        case VK_SHIFT: {} break;
         case VK_BACK: {
             if (cur_line->start == 0 && buffer->start > 1) {
                 // @Note: cur_line is at data[buffer->start - 1].
@@ -113,13 +129,20 @@ void editor_handle_keydown(u32 virtual_key)
         case VK_RETURN: {
             GapBuffer<char16> *new_line = gap_buffer_create<char16>();
            
+            u64 indent = 0;
+            char16 space = static_cast<char16>(' ');
+            while (cur_line->data[indent] == space && indent < cur_line->start) {
+                indent++;
+                new_line->insert(space);
+            }
+
             if (cur_line->end < cur_line->size) {
                 while (cur_line->end < cur_line->size) {
                     new_line->insert(cur_line->data[cur_line->end]);
                     cur_line->remove_from_back();
                 }
 
-                while (new_line->start > 0) {
+                while (new_line->start > indent) {
                     new_line->move_left();
                 }
             }
@@ -128,22 +151,39 @@ void editor_handle_keydown(u32 virtual_key)
         } break;
 
         case VK_LEFT: {
-            cur_line->move_left();
+            if (cur_line->start == 0) {
+                if (buffer->start > 1) {
+                    buffer->move_left();
+                }
+            } else {
+                cur_line->move_left();
+            }
         } break;
 
         case VK_RIGHT: {
-            cur_line->move_right();
+            if (cur_line->end == cur_line->size) {
+                if (buffer->end != buffer->size) {
+                    buffer->move_right();
+                    buffer->data[buffer->start - 1]->move_to(0);
+                }
+            } else {
+                cur_line->move_right();
+            }
         } break;
 
         case VK_UP: {
             // @Note: > 1 so we dont put the gap before the first line.
             if (buffer->start > 1) {
+                calculate_new_cursor_x(buffer->data[buffer->start - 2]);
                 buffer->move_left();
             }
         } break;
 
         case VK_DOWN: {
-            buffer->move_right();
+            if (buffer->end != buffer->size) {
+                calculate_new_cursor_x(buffer->data[buffer->end]);
+                buffer->move_right();
+            }
         } break;
     }
 }
@@ -175,8 +215,8 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             if (p_line->start > 0) {
                 // @Speed? Don't know how this will scale performance-wise
                 // with very large buffers.
-                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
-                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX | DT_CALCRECT, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
             } 
 
             if (!gap_at_end) {
@@ -188,8 +228,7 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
 
             if (p_line == cur_line) {
                 RECT cursor = pre_gap_rect;
-                // !!!GetCharWidth32 really wants an int.
-                int cursor_width = char_width;
+                s32 cursor_width = char_width;
 
                 if (has_text) {
                     if (!gap_at_end) {
@@ -209,5 +248,4 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             line++;
         }
     }
-
 }
