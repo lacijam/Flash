@@ -7,6 +7,26 @@
 
 static GapBuffer<GapBuffer<char16>*> *buffer;
 static GapBuffer<char16> *cur_line;
+static bool selecting;
+static u64 select_start_x;
+static u64 select_start_y;
+static u64 select_end_x;
+static u64 select_end_y;
+
+// Moves characters from src into dst then restores the gap position of dst.
+// Returns the merged line.
+static void merge_lines(GapBuffer<char16>* dst, GapBuffer<char16>* src) {
+    u64 delta = 0;
+    while (src->end < src->size) {
+        dst->insert(src->data[src->end]);
+        src->remove_from_back();
+        delta++;
+    }
+
+    while (delta-- > 0) {
+        dst->move_left();
+    }
+}
 
 void editor_init()
 {
@@ -33,22 +53,16 @@ void editor_cleanup()
 void editor_handle_char(u32 virtual_key)
 {
     switch (virtual_key) {
-        case VK_BACK: {
-
-        } break;
-
+        case VK_BACK: break;
         case VK_RETURN: break;
-
-        case VK_ESCAPE: {
-
-        } break;
-
-        case VK_TAB: {
-
-        } break;
-
-        default:
-            cur_line->insert(static_cast<char16>(virtual_key));
+        case VK_ESCAPE: break;
+        
+        case VK_TAB:
+        default: {
+            if (GetKeyState(VK_CONTROL) >= 0) {
+                cur_line->insert(static_cast<char16>(virtual_key));
+            }
+        }
     }
 }
 
@@ -59,59 +73,35 @@ void editor_handle_keydown(u32 virtual_key)
             if (cur_line->start == 0 && buffer->start > 1) {
                 // @Note: cur_line is at data[buffer->start - 1].
                 GapBuffer<char16> *prev_line = buffer->data[buffer->start - 2];
-                
-                while (prev_line->end != prev_line->size) {
-                    prev_line->move_right();
-                }
 
                 // If there's anything on the current line we need to copy
                 // it to the previous line.
                 if (cur_line->end < cur_line->size) {
-                    u64 delta = 0;
-                    while (cur_line->end < cur_line->size) {
-                        prev_line->insert(cur_line->data[cur_line->end]);
-                        cur_line->remove_from_back();
-                        delta++;
+                    while (prev_line->end != prev_line->size) {
+                        prev_line->move_right();
                     }
 
-                    while (delta-- > 0) {
-                        prev_line->move_left();
-                    }
+                    merge_lines(prev_line, cur_line);
                 }
 
-
                 buffer->remove_from_front();
-                cur_line = prev_line;
             } else {
                 cur_line->remove_from_front();
             }
         } break;
 
-        // @TODO: If at start of line copy next line onto current line and remove next line.
         case VK_DELETE: {
             if (cur_line->end == cur_line->size && buffer->end != buffer->size) {
                 GapBuffer<char16> *next_line = buffer->data[buffer->end];
            
                 // If there's anything on the next line we need to copy
                 // it to the current line.
-                // @Note: Unlike WM_BACK we don't know the position of the cursor
-                // on the line we might be copying from but we can calculate it
-                // by calculating end - start
                 if (next_line->end - next_line->start < next_line->size) {
                     while (next_line->start > 0) {
                         next_line->move_left();
                     }
 
-                    u64 delta = 0;
-                    while (next_line->end < next_line->size) {
-                        cur_line->insert(next_line->data[next_line->end]);
-                        next_line->remove_from_back();
-                        delta++;
-                    }
-
-                    while (delta-- > 0) {
-                        cur_line->move_left();
-                    }
+                    merge_lines(cur_line, next_line);
                 }
 
                 buffer->remove_from_back();
@@ -135,7 +125,6 @@ void editor_handle_keydown(u32 virtual_key)
             }
 
             buffer->insert(new_line);
-            cur_line = new_line;
         } break;
 
         case VK_LEFT: {
@@ -150,64 +139,75 @@ void editor_handle_keydown(u32 virtual_key)
             // @Note: > 1 so we dont put the gap before the first line.
             if (buffer->start > 1) {
                 buffer->move_left();
-                cur_line = buffer->data[buffer->start - 1];
             }
         } break;
 
         case VK_DOWN: {
             buffer->move_right();
-            cur_line = buffer->data[buffer->start - 1];
         } break;
     }
 }
 
 void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
 {
-    RECT cursor = { 0, 0, static_cast<LONG>(char_width), static_cast<LONG>(char_height) };
+    // Update cursor position to line just before gap.
+    cur_line = buffer->data[buffer->start - 1];
 
     u64 line = 0;
     for (u64 buffer_index = 0; buffer_index < buffer->size; buffer_index++) {
         if (buffer_index < buffer->start || buffer_index >= buffer->end) {
-            GapBuffer<char16>* p_line = buffer->data[buffer_index];
+            GapBuffer<char16> *p_line = buffer->data[buffer_index];
 
-            LONG p_line_y =  line * char_height;
+            LONG p_line_y = line * char_height;
+
+            // @Note: Calculate line screen pos with width returned from DrawText
+            // and tmHeight from font.
+            RECT pre_gap_rect = { 0, p_line_y, 0, p_line_y + char_height},
+                 post_gap_rect = pre_gap_rect; 
 
             DRAWTEXTPARAMS dtp = {};
             dtp.cbSize = sizeof(dtp);
             dtp.iTabLength = 4;
 
-            // @Note: Calculate line screen pos with width returned from DrawText
-            // and tmHeight from font.
-            RECT text_rect = {}; 
-            text_rect.top += p_line_y;
-            text_rect.bottom += p_line_y;
+            bool has_text = p_line->end - p_line->start > 0;
+            bool gap_at_end = p_line->end == p_line->size;
 
             if (p_line->start > 0) {
                 // @Speed? Don't know how this will scale performance-wise
                 // with very large buffers.
-                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
-                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+            } 
 
-                // @Note/@Hack?: Draw the next section at the end of this one.
-                text_rect.left = text_rect.right;
+            if (!gap_at_end) {
+                post_gap_rect.left = pre_gap_rect.right;
+
+                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
             }
 
             if (p_line == cur_line) {
-                cursor.left   += text_rect.left;
-                cursor.top    += text_rect.top;
-                cursor.right  += text_rect.right;
-                cursor.bottom += text_rect.top;
-            }
+                RECT cursor = pre_gap_rect;
+                // !!!GetCharWidth32 really wants an int.
+                int cursor_width = char_width;
 
-            if (p_line->end < p_line->size) {
-                // @Speed/@Code/@Dangerous?: Make a function to get the pointer for the 2nd section instead of workign it out here???
-                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
-                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &text_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+                if (has_text) {
+                    if (!gap_at_end) {
+                        u32 c = p_line->data[p_line->end];
+                        GetCharWidth32(dc, c, c, &cursor_width);
+                    }
+
+                    cursor.left = pre_gap_rect.right;
+                } else {
+                    cursor.left = 0;
+                }
+
+                cursor.right = cursor.left + cursor_width;
+                FillRect(dc, &cursor, (HBRUSH)(WHITE_BRUSH + 1));
             }
 
             line++;
         }
     }
 
-    FillRect(dc, &cursor, (HBRUSH)(WHITE_BRUSH + 1));
 }
