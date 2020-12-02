@@ -27,10 +27,11 @@ static void merge_lines(GapBuffer<char16>* dst, GapBuffer<char16>* src) {
 
 static void calculate_new_cursor_x(GapBuffer<char16> *dst)
 {
-    if (dst->size - (dst->end - dst->start) > cur_line->start) {
+    u64 dst_len = dst->size - (dst->end - dst->start);
+    if (dst_len > cur_line->start) {
         dst->move_to(cur_line->start);
     } else {
-        dst->move_to(dst->size - 1);
+        dst->move_to(dst_len);
     }
 }
 

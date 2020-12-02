@@ -116,13 +116,13 @@ void GapBuffer<T>::move_right()
 template <typename T>
 void GapBuffer<T>::move_to(u64 pos)
 {
-    assert(pos >= 0 && pos < size);
+    assert(pos >= 0 && pos <= size);
     if (pos < start) {
-        while (pos != start && start > 0) {
+        while (start > pos  && start > 0) {
             data[--end] = data[--start];
         }
     } else {
-        while (pos != start && end < size) {
+        while (start < pos && end <= size) {
             data[start++] = data[end++];
         }
     }
