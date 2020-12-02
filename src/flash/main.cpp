@@ -102,11 +102,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
          // @Note: em to pt.
         u32 height = MulDiv(24, GetDeviceCaps(GetDC(hwnd), LOGPIXELSY), 72);
+        
         data->font = CreateFont(height, 0, 0, 0, 
         FW_DONTCARE, FALSE, FALSE, FALSE,
          DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
           CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-           DEFAULT_PITCH | FF_DONTCARE, NULL
+           FIXED_PITCH | FF_DONTCARE, NULL
            );
 
         editor_init();
@@ -167,6 +168,8 @@ AllocConsole();
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+
+    DeleteObject(window_data.font);
     
     return 0;
 }

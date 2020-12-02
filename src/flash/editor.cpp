@@ -27,12 +27,10 @@ static void merge_lines(GapBuffer<char16>* dst, GapBuffer<char16>* src) {
 
 static void calculate_new_cursor_x(GapBuffer<char16> *dst)
 {
-    GapBuffer<char16> *dst = buffer->data[buffer->start - 2];
-
     if (dst->size - (dst->end - dst->start) > cur_line->start) {
         dst->move_to(cur_line->start);
     } else {
-        dst->move_to(dst->size);
+        dst->move_to(dst->size - 1);
     }
 }
 
@@ -219,8 +217,8 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             if (!gap_at_end) {
                 post_gap_rect.left = pre_gap_rect.right;
 
-                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_CALCRECT, &dtp);
-                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX | DT_CALCRECT, &dtp);
+                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
             }
 
             if (p_line == cur_line) {
