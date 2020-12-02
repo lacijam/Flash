@@ -8,10 +8,7 @@
 static GapBuffer<GapBuffer<char16>*> *buffer;
 static GapBuffer<char16> *cur_line;
 static bool selecting;
-static u64 select_start_x;
-static u64 select_start_y;
-static u64 select_end_x;
-static u64 select_end_y;
+HFILE cur_file;
 
 // Moves characters from src into dst then restores the gap position of dst.
 // Returns the merged line.
