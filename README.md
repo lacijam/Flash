@@ -1,6 +1,8 @@
 # Flash
 Text editor build with C++ and the Win32 API.
 
+![](https://i.imgur.com/gangYvO.gif)
+
 ## Requirements
 * Visual Studio with C++ stuff installed
 
