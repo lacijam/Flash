@@ -191,57 +191,59 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
 
     u64 line = 0;
     for (u64 buffer_index = 0; buffer_index < buffer->size; buffer_index++) {
-        if (buffer_index < buffer->start || buffer_index >= buffer->end) {
-            GapBuffer<char16> *p_line = buffer->data[buffer_index];
+        if (buffer_index >= buffer->start && buffer_index < buffer->end) {
+            continue;
+        }
 
-            LONG p_line_y = line * char_height;
+        GapBuffer<char16> *p_line = buffer->data[buffer_index];
 
-            // @Note: Calculate line screen pos with width returned from DrawText
-            // and tmHeight from font.
-            RECT pre_gap_rect = { 0, p_line_y, 0, p_line_y + char_height},
-                 post_gap_rect = pre_gap_rect; 
+        LONG p_line_y = line * char_height;
 
-            DRAWTEXTPARAMS dtp = {};
-            dtp.cbSize = sizeof(dtp);
-            dtp.iTabLength = 4;
+        // @Note: Calculate line screen pos with width returned from DrawText
+        // and tmHeight from font.
+        RECT pre_gap_rect = { 0, p_line_y, 0, p_line_y + char_height},
+             post_gap_rect = pre_gap_rect; 
 
-            bool has_text = p_line->end - p_line->start > 0;
-            bool gap_at_end = p_line->end == p_line->size;
+        DRAWTEXTPARAMS dtp = {};
+        dtp.cbSize = sizeof(dtp);
+        dtp.iTabLength = 4;
 
-            if (p_line->start > 0) {
-                // @Speed? Don't know how this will scale performance-wise
-                // with very large buffers.
-                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX | DT_CALCRECT, &dtp);
-                DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
-            } 
+        bool has_text = p_line->end - p_line->start > 0;
+        bool gap_at_end = p_line->end == p_line->size;
 
-            if (!gap_at_end) {
-                post_gap_rect.left = pre_gap_rect.right;
+        if (p_line->start > 0) {
+            // @Speed? Don't know how this will scale performance-wise
+            // with very large buffers.
+            DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX | DT_CALCRECT, &dtp);
+            DrawTextEx(dc, (LPWSTR)p_line->data, p_line->start, &pre_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
+        } 
 
-                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX | DT_CALCRECT, &dtp);
-                DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
-            }
+        if (!gap_at_end) {
+            post_gap_rect.left = pre_gap_rect.right;
 
-            if (p_line == cur_line) {
-                RECT cursor = pre_gap_rect;
-                s32 cursor_width = char_width;
+            DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX | DT_CALCRECT, &dtp);
+            DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
+        }
 
-                if (has_text) {
-                    if (!gap_at_end) {
-                        u32 c = p_line->data[p_line->end];
-                        GetCharWidth32(dc, c, c, &cursor_width);
-                    }
+        if (p_line == cur_line) {
+            RECT cursor = pre_gap_rect;
+            s32 cursor_width = char_width;
 
-                    cursor.left = pre_gap_rect.right;
-                } else {
-                    cursor.left = 0;
+            if (has_text) {
+                if (!gap_at_end) {
+                    u32 c = p_line->data[p_line->end];
+                    GetCharWidth32(dc, c, c, &cursor_width);
                 }
 
-                cursor.right = cursor.left + cursor_width;
-                FillRect(dc, &cursor, (HBRUSH)(WHITE_BRUSH + 1));
+                cursor.left = pre_gap_rect.right;
+            } else {
+                cursor.left = 0;
             }
 
-            line++;
+            cursor.right = cursor.left + cursor_width;
+            FillRect(dc, &cursor, (HBRUSH)(WHITE_BRUSH + 1));
         }
+
+        line++;
     }
 }
