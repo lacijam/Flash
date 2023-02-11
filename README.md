@@ -1,5 +1,5 @@
 # Flash
-Text editor build with C++ and the Win32 API.
+Text editor built with C++ and the Win32 API.
 
 ## Requirements
 * Visual Studio with C++ stuff installed
