@@ -208,7 +208,6 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
         dtp.cbSize = sizeof(dtp);
         dtp.iTabLength = 4;
 
-        bool has_text = p_line->end - p_line->start > 0;
         bool gap_at_end = p_line->end == p_line->size;
 
         if (p_line->start > 0) {
@@ -225,9 +224,13 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
             DrawTextEx(dc, (LPWSTR)p_line->data + p_line->end, p_line->size - p_line->end, &post_gap_rect, DT_LEFT | DT_EXPANDTABS | DT_NOPREFIX, &dtp);
         }
 
+
         if (p_line == cur_line) {
             RECT cursor = pre_gap_rect;
             s32 cursor_width = char_width;
+            bool has_text = p_line->end - p_line->start > 0;
+
+            cursor.left = 0;
 
             if (has_text) {
                 if (!gap_at_end) {
@@ -236,8 +239,6 @@ void editor_win32_draw(HDC dc, RECT *client, u32 char_width, u32 char_height)
                 }
 
                 cursor.left = pre_gap_rect.right;
-            } else {
-                cursor.left = 0;
             }
 
             cursor.right = cursor.left + cursor_width;
